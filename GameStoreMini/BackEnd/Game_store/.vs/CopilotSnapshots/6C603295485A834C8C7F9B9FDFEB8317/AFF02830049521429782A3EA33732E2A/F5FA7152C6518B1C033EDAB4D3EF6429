@@ -1,0 +1,177 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using GameStoreMini.Data;
+using GameStoreMini.Dtos;
+using GameStoreMini.Models;
+using Microsoft.AspNetCore.Http;
+using System.IO;
+
+namespace GameStoreMini.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class GamesController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+        private readonly IWebHostEnvironment _env;
+        public GamesController(AppDbContext db, IWebHostEnvironment env) => (_db, _env) = (db, env);
+
+        // Public: list games with optional paging, search and category filter
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+                                                [FromQuery] string? q = null, [FromQuery] int? categoryId = null,
+                                                [FromQuery] string? categorySlug = null)
+        {
+            if (page <= 0) page = 1;
+            if (pageSize <= 0) pageSize = 20;
+
+            var query = _db.Games.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var pattern = $"%{q}%";
+                query = query.Where(g => EF.Functions.ILike(g.Title, pattern) || EF.Functions.ILike(g.Description ?? string.Empty, pattern));
+            }
+
+            if (categoryId.HasValue)
+            {
+                query = query.Where(g => g.Categories.Any(c => c.Id == categoryId.Value));
+            }
+            else if (!string.IsNullOrWhiteSpace(categorySlug))
+            {
+                query = query.Where(g => g.Categories.Any(c => c.Slug == categorySlug));
+            }
+
+            var total = await query.CountAsync();
+
+            var games = await query
+                .Include(g => g.Categories)
+                .OrderByDescending(g => g.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(g => new GameDto
+                {
+                    Id = g.Id,
+                    Title = g.Title,
+                    Description = g.Description,
+                    Price = g.Price,
+                    Stock = g.Stock,
+                    CategoryNames = g.Categories.Select(c => c.Name).ToArray()
+                })
+                .ToListAsync();
+
+            return Ok(new { items = games, total, page, pageSize });
+        }
+
+        // Public: get one game (includes categories)
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var g = await _db.Games
+                .Include(gm => gm.Categories)
+                .FirstOrDefaultAsync(gm => gm.Id == id);
+
+            if (g == null) return NotFound();
+
+            return Ok(new GameDto
+            {
+                Id = g.Id,
+                Title = g.Title,
+                Description = g.Description,
+                Price = g.Price,
+                Stock = g.Stock,
+                CategoryNames = g.Categories.Select(c => c.Name).ToArray()
+            });
+        }
+
+        // Admin only: create a game
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPost]
+        [ProducesResponseType(typeof(GameDto), 201)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> Create([FromBody] CreateGameDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (dto.Price < 0 || dto.Stock < 0) return BadRequest("Price and Stock must be non-negative.");
+
+            var g = new Game { Title = dto.Title, Description = dto.Description, Price = dto.Price, Stock = dto.Stock, CreatedAt = DateTime.UtcNow };
+            _db.Games.Add(g);
+            await _db.SaveChangesAsync();
+
+            var result = new GameDto { Id = g.Id, Title = g.Title, Description = g.Description, Price = g.Price, Stock = g.Stock };
+            return CreatedAtAction(nameof(Get), new { id = g.Id }, result);
+        }
+
+        // Admin only: update
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPut("{id:int}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Update(int id, [FromBody] CreateGameDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (dto.Price < 0 || dto.Stock < 0) return BadRequest("Price and Stock must be non-negative.");
+
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+
+            g.Title = dto.Title;
+            g.Description = dto.Description;
+            g.Price = dto.Price;
+            g.Stock = dto.Stock;
+            g.CreatedAt = g.CreatedAt; // keep original created date
+
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // Admin only: delete
+        [Authorize(Roles = Roles.Admin)]
+        [HttpDelete("{id:int}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+            _db.Games.Remove(g);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // Admin only: upload image for a game
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPost("{id:int}/image")]
+        [RequestSizeLimit(10_000_000)]
+        public async Task<IActionResult> UploadImage(int id, IFormFile file)
+        {
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+            if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
+
+            // Validate file type
+            var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+            if (!allowed.Contains(file.ContentType)) return BadRequest("Invalid image type. Allowed: jpg, png, webp.");
+
+            // Ensure uploads folder exists
+            var uploads = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads");
+            if (!Directory.Exists(uploads)) Directory.CreateDirectory(uploads);
+
+            var ext = Path.GetExtension(file.FileName);
+            var fileName = Guid.NewGuid().ToString() + ext;
+            var filePath = Path.Combine(uploads, fileName);
+
+            await using (var stream = System.IO.File.Create(filePath))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            g.ImageUrl = $"/uploads/{fileName}";
+            await _db.SaveChangesAsync();
+
+            return Ok(new { imageUrl = g.ImageUrl });
+        }
+    }
+}

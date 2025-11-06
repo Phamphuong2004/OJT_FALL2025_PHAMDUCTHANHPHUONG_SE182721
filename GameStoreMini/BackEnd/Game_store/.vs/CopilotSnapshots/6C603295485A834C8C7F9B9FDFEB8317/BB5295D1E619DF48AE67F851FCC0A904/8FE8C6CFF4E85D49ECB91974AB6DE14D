@@ -1,0 +1,83 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using GameStoreMini.Data;
+using GameStoreMini.Dtos;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class GamesController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+        public GamesController(AppDbContext db) => _db = db;
+
+        // Public: list games
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var games = await _db.Games
+                .OrderByDescending(g => g.CreatedAt)
+                .Select(g => new GameDto
+                {
+                    Id = g.Id,
+                    Title = g.Title,
+                    Description = g.Description,
+                    Price = g.Price,
+                    Stock = g.Stock
+                })
+                .ToListAsync();
+
+            return Ok(games);
+        }
+
+        // Public: get one game
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+            return Ok(new GameDto { Id = g.Id, Title = g.Title, Description = g.Description, Price = g.Price, Stock = g.Stock });
+        }
+
+        // Admin only: create a game
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPost]
+        public async Task<IActionResult> Create(CreateGameDto dto)
+        {
+            var g = new Game { Title = dto.Title, Description = dto.Description, Price = dto.Price, Stock = dto.Stock };
+            _db.Games.Add(g);
+            await _db.SaveChangesAsync();
+            return CreatedAtAction(nameof(Get), new { id = g.Id }, new { g.Id });
+        }
+
+        // Admin only: update
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, CreateGameDto dto)
+        {
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+            g.Title = dto.Title;
+            g.Description = dto.Description;
+            g.Price = dto.Price;
+            g.Stock = dto.Stock;
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // Admin only: delete
+        [Authorize(Roles = Roles.Admin)]
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+            _db.Games.Remove(g);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+    }
+}

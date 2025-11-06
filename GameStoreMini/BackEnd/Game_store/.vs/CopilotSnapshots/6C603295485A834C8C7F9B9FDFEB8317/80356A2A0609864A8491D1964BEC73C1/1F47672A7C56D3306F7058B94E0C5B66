@@ -1,0 +1,89 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using GameStoreMini.Data;
+using GameStoreMini.Dtos;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/[controller]")]
+    public class CartController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+        public CartController(AppDbContext db) => _db = db;
+
+        // Helper: get current user id from JWT subject claim
+        private int CurrentUserId => int.Parse(User.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
+
+        // GET: /api/cart
+        [HttpGet]
+        public async Task<IActionResult> GetCart()
+        {
+            var cart = await _db.Carts
+                .Include(c => c.Items).ThenInclude(i => i.Game)
+                .FirstOrDefaultAsync(c => c.UserId == CurrentUserId);
+
+            if (cart == null) return Ok(new CartDto());
+
+            var items = cart.Items.Select(i => new CartItemDto
+            {
+                GameId = i.GameId,
+                Title = i.Game?.Title ?? string.Empty,
+                UnitPrice = i.Game?.Price ?? 0,
+                Quantity = i.Quantity
+            });
+
+            return Ok(new CartDto { Items = items, Total = items.Sum(x => x.UnitPrice * x.Quantity) });
+        }
+
+        // POST: /api/cart/add
+        [HttpPost("add")]
+        public async Task<IActionResult> AddToCart(AddToCartDto dto)
+        {
+            var game = await _db.Games.FindAsync(dto.GameId);
+            if (game == null) return NotFound("Game not found.");
+            if (dto.Quantity <= 0) return BadRequest("Quantity must be > 0.");
+
+            var cart = await _db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == CurrentUserId);
+            if (cart == null)
+            {
+                cart = new Cart { UserId = CurrentUserId };
+                _db.Carts.Add(cart);
+                await _db.SaveChangesAsync();
+            }
+
+            var item = cart.Items.FirstOrDefault(i => i.GameId == dto.GameId);
+            if (item == null)
+            {
+                item = new CartItem { CartId = cart.Id, GameId = dto.GameId, Quantity = dto.Quantity };
+                _db.CartItems.Add(item);
+            }
+            else
+            {
+                item.Quantity += dto.Quantity;
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok();
+        }
+
+        // POST: /api/cart/remove/{gameId}
+        [HttpPost("remove/{gameId:int}")]
+        public async Task<IActionResult> RemoveFromCart(int gameId)
+        {
+            var cart = await _db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == CurrentUserId);
+            if (cart == null) return NotFound();
+
+            var item = cart.Items.FirstOrDefault(i => i.GameId == gameId);
+            if (item == null) return NotFound();
+
+            _db.CartItems.Remove(item);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+    }
+}

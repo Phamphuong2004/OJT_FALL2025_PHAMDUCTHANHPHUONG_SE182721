@@ -1,0 +1,78 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using GameStoreMini.Data;
+using GameStoreMini.Dtos;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/[controller]")]
+    public class OrdersController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+        public OrdersController(AppDbContext db) => _db = db;
+        private int CurrentUserId => int.Parse(User.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
+
+        // POST: /api/orders/checkout
+        [HttpPost("checkout")]
+        public async Task<IActionResult> Checkout()
+        {
+            var cart = await _db.Carts
+                .Include(c => c.Items).ThenInclude(i => i.Game)
+                .FirstOrDefaultAsync(c => c.UserId == CurrentUserId);
+
+            if (cart == null || !cart.Items.Any()) return BadRequest("Cart is empty.");
+
+            // Check stock
+            foreach (var ci in cart.Items)
+            {
+                if (ci.Game == null || ci.Game.Stock < ci.Quantity)
+                    return BadRequest($"Insufficient stock for {ci.Game?.Title ?? "item"}.");
+            }
+
+            var order = new Order { UserId = CurrentUserId };
+            decimal total = 0;
+
+            foreach (var ci in cart.Items)
+            {
+                var oi = new OrderItem
+                {
+                    GameId = ci.GameId,
+                    Quantity = ci.Quantity,
+                    UnitPrice = ci.Game!.Price
+                };
+                order.Items.Add(oi);
+                total += oi.UnitPrice * oi.Quantity;
+
+                // Decrease stock
+                ci.Game!.Stock -= ci.Quantity;
+            }
+
+            order.Total = total;
+            _db.Orders.Add(order);
+
+            // Remove cart items
+            _db.CartItems.RemoveRange(cart.Items);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { order.Id, order.Total, order.CreatedAt });
+        }
+
+        // GET: /api/orders
+        [HttpGet]
+        public async Task<IActionResult> GetOrders()
+        {
+            var orders = await _db.Orders
+                .Where(o => o.UserId == CurrentUserId)
+                .OrderByDescending(o => o.CreatedAt)
+                .Select(o => new { o.Id, o.Total, o.CreatedAt, o.Status })
+                .ToListAsync();
+
+            return Ok(orders);
+        }
+    }
+}

@@ -1,0 +1,100 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using GameStoreMini.Data;
+using GameStoreMini.Dtos;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Controllers
+{
+    [ApiController]
+    [Route("api/games")]
+    public class GamesController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+        public GamesController(AppDbContext db) => _db = db;
+
+        // Public: list
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var games = await _db.Games
+                .Include(g => g.Categories)
+                .OrderBy(g => g.Title)
+                .Select(g => new GameDto
+                {
+                    Id = g.Id,
+                    Title = g.Title,
+                    Description = g.Description,
+                    Price = g.Price,
+                    Stock = g.Stock,
+                    CategoryNames = g.Categories.Select(c => c.Name).ToArray(),
+                    ImageUrl = g.ImageUrl
+                })
+                .ToListAsync();
+            return Ok(games);
+        }
+
+        // Public: get one
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var g = await _db.Games
+                .Include(g => g.Categories)
+                .FirstOrDefaultAsync(g => g.Id == id);
+            if (g == null) return NotFound();
+            return Ok(new GameDto
+            {
+                Id = g.Id,
+                Title = g.Title,
+                Description = g.Description,
+                Price = g.Price,
+                Stock = g.Stock,
+                CategoryNames = g.Categories.Select(c => c.Name).ToArray(),
+                ImageUrl = g.ImageUrl
+            });
+        }
+
+        // Admin: create
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateGameDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var g = new Game { Title = dto.Title, Description = dto.Description, Price = dto.Price, Stock = dto.Stock, CreatedAt = DateTime.UtcNow, ImageUrl = dto.ImageUrl };
+            _db.Games.Add(g);
+            await _db.SaveChangesAsync();
+            var result = new GameDto { Id = g.Id, Title = g.Title, Description = g.Description, Price = g.Price, Stock = g.Stock, ImageUrl = g.ImageUrl };
+            return CreatedAtAction(nameof(Get), new { id = g.Id }, result);
+        }
+
+        // Admin: update
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] CreateGameDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+            g.Title = dto.Title;
+            g.Description = dto.Description;
+            g.Price = dto.Price;
+            g.Stock = dto.Stock;
+            g.ImageUrl = dto.ImageUrl;
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // Admin: delete
+        [Authorize(Roles = Roles.Admin)]
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var g = await _db.Games.FindAsync(id);
+            if (g == null) return NotFound();
+            _db.Games.Remove(g);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+    }
+}

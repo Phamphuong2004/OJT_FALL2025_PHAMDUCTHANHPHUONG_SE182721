@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Suppress specific nullable initialization warnings (CS8618) when project intentionally relies on defaults or runtime-initialized values -->
+    <NoWarn>$(NoWarn);CS8618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+    <!-- Use Npgsql provider for PostgreSQL -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
+    <!-- Design-time support for EF Core migrations -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10" />
+    <!-- Optional helpers for dotnet-ef tooling -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.10" PrivateAssets="all" />
+    <!-- JWT authentication support -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.9" />
+    <!-- Ensure compatible System.IdentityModel.Tokens.Jwt version to avoid downgrade errors -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
+    <!-- Swagger UI -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.0" />
+  </ItemGroup>
+
+</Project>

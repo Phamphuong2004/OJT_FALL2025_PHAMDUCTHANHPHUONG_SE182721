@@ -1,0 +1,77 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using GameStoreMini.Data;
+using GameStoreMini.Dtos;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Controllers
+{
+    [ApiController]
+    [Route("api/categories")]
+    public class CategoryController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+        public CategoryController(AppDbContext db) => _db = db;
+
+        // Public: list categories
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var cats = await _db.Categories
+                .OrderBy(c => c.Name)
+                .Select(c => new CategoryDto { Id = c.Id, Name = c.Name, Slug = c.Slug })
+                .ToListAsync();
+            return Ok(cats);
+        }
+
+        // Public: get one
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var c = await _db.Categories.FindAsync(id);
+            if (c == null) return NotFound();
+            return Ok(new CategoryDto { Id = c.Id, Name = c.Name, Slug = c.Slug });
+        }
+
+        // Admin: create
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateCategoryDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var slug = string.IsNullOrWhiteSpace(dto.Slug) ? dto.Name.ToLower().Replace(' ', '-') : dto.Slug;
+            var c = new Category { Name = dto.Name, Slug = slug };
+            _db.Categories.Add(c);
+            await _db.SaveChangesAsync();
+            return CreatedAtAction(nameof(Get), new { id = c.Id }, new CategoryDto { Id = c.Id, Name = c.Name, Slug = c.Slug });
+        }
+
+        // Admin: update
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] CreateCategoryDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var c = await _db.Categories.FindAsync(id);
+            if (c == null) return NotFound();
+            c.Name = dto.Name;
+            c.Slug = string.IsNullOrWhiteSpace(dto.Slug) ? dto.Name.ToLower().Replace(' ', '-') : dto.Slug;
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // Admin: delete
+        [Authorize(Roles = Roles.Admin)]
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var c = await _db.Categories.Include(x => x.Games).FirstOrDefaultAsync(x => x.Id == id);
+            if (c == null) return NotFound();
+            if (c.Games.Any()) return BadRequest("Cannot delete category that has games assigned.");
+            _db.Categories.Remove(c);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+    }
+}

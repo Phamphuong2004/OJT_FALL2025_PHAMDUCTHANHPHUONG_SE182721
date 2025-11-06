@@ -1,0 +1,19 @@
+﻿using Microsoft.EntityFrameworkCore;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Data
+{
+    // The EF Core DbContext holds DbSet<TEntity> properties for each table.
+    public class AppDbContext : DbContext
+    {
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+        // Application tables
+        public DbSet<User> Users { get; set; } = null!;
+        public DbSet<Game> Games { get; set; } = null!;
+        public DbSet<Cart> Carts { get; set; } = null!;
+        public DbSet<CartItem> CartItems { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+        public DbSet<OrderItem> OrderItems { get; set; } = null!;
+    }
+}

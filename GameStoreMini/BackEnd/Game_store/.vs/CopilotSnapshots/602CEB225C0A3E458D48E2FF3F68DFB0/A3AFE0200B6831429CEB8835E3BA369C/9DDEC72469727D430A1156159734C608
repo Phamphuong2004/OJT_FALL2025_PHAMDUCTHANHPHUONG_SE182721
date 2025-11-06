@@ -1,0 +1,35 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace Game_store.Migrations
+{
+    public partial class AddGameSortOrder : Migration
+    {
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<int>(
+                name: "SortOrder",
+                table: "Games",
+                type: "integer",
+                nullable: false,
+                defaultValue: 0);
+
+            // Initialize SortOrder to row number ordered by CreatedAt desc (newest first)
+            migrationBuilder.Sql(
+                "WITH ordered AS (" +
+                "  SELECT \"Id\", ROW_NUMBER() OVER (ORDER BY \"CreatedAt\" DESC) AS rn" +
+                "  FROM \"Games\"" +
+                ") UPDATE \"Games\" g SET \"SortOrder\" = o.rn FROM ordered o WHERE g.\"Id\" = o.\"Id\";"
+            );
+        }
+
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "SortOrder",
+                table: "Games");
+        }
+    }
+}

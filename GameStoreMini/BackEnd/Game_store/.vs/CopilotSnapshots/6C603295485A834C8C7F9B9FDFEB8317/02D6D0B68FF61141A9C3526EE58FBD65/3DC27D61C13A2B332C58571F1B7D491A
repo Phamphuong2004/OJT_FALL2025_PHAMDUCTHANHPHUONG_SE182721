@@ -1,0 +1,86 @@
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using GameStoreMini.Data;
+using GameStoreMini.Services;
+using GameStoreMini.Models;
+using GameStoreMini.Utils;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add controllers and Swagger for easy testing.
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// Configure SQLite database. The connection string is in appsettings.json.
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register our token service which creates JWTs.
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+// Read JWT settings and configure authentication.
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var key = Encoding.UTF8.GetBytes(jwtSection.GetValue<string>("Key")!);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false; // set true in production
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidIssuer = jwtSection.GetValue<string>("Issuer"),
+        ValidateAudience = true,
+        ValidAudience = jwtSection.GetValue<string>("Audience"),
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateLifetime = true
+    };
+});
+
+var app = builder.Build();
+
+// Ensure database created and seed a demo admin user (for learning).
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+
+    // Seed an admin user if none exists.
+    if (!db.Users.Any(u => u.Email == "admin@gamestore.local"))
+    {
+        var admin = new User
+        {
+            Email = "admin@gamestore.local",
+            UserName = "admin",
+            IsAdmin = true
+        };
+        // Hash the password "Admin123!" and save.
+        admin.PasswordHash = PasswordHelper.HashPassword("Admin123!");
+        db.Users.Add(admin);
+        db.SaveChanges();
+    }
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+// Enable authentication/authorization middleware so protected endpoints work.
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();

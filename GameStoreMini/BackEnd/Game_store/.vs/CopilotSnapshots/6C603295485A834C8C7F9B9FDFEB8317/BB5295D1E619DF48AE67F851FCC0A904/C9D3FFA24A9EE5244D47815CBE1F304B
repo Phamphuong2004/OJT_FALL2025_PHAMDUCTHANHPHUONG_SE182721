@@ -1,0 +1,24 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace GameStoreMini.Models
+{
+    public class Game
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        [MaxLength(2000)]
+        public string? Description { get; set; }
+
+        public decimal Price { get; set; }
+
+        // Quantity in stock
+        public int Stock { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public 
+    }
+}

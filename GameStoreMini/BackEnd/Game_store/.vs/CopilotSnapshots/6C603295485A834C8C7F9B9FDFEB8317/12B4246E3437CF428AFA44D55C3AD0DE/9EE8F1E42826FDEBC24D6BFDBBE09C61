@@ -1,0 +1,21 @@
+﻿namespace GameStoreMini.Dtos
+{
+    // DTOs (Data Transfer Objects) are used to accept and return clean data structures.
+    public class RegisterDto
+    {
+        public string Email { get; set; } = null!;
+        public string UserName { get; set; } = null!;
+        public string Password { get; set; } = null!;
+    }
+
+    public class LoginDto
+    {
+        public string Email { get; set; } = null!;
+        public string Password { get; set; } = null!;
+    }
+
+    public class AuthResultDto
+    {
+        public string Token { get; set; } = null!;
+    }
+}

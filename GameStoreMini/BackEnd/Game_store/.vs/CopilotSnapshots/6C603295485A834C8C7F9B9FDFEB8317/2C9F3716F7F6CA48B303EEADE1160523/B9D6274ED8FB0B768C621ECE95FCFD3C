@@ -1,0 +1,41 @@
+﻿using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Services
+{
+    public class TokenService : ITokenService
+    {
+        private readonly IConfiguration _config;
+        public TokenService(IConfiguration config) => _config = config;
+
+        public string CreateToken(User user)
+        {
+            var jwt = _config.GetSection("Jwt");
+            var key = Encoding.UTF8.GetBytes(jwt.GetValue<string>("Key")!);
+
+            // Basic claims: subject (user id), email, role
+            var claims = new List<Claim>
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+                new Claim(ClaimTypes.Role, user.Role ?? "Customer")
+            };
+
+            var creds = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: jwt.GetValue<string>("Issuer"),
+                audience: jwt.GetValue<string>("Audience"),
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(jwt.GetValue<int>("ExpireMinutes")),
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+    }
+}

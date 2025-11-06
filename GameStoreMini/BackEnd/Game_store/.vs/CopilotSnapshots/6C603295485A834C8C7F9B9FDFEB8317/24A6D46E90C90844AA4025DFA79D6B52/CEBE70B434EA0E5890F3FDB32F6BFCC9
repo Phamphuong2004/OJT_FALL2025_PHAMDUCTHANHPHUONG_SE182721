@@ -1,0 +1,464 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
+
+namespace Game_store.Migrations
+{
+    /// <inheritdoc />
+    public partial class InitialCreate : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AlterColumn<string>(
+                name: "UserName",
+                table: "Users",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "PasswordHash",
+                table: "Users",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.Sql(
+                "ALTER TABLE \"Users\" ALTER COLUMN \"IsAdmin\" TYPE boolean USING (CASE WHEN \"IsAdmin\" IN ('1','t','true','True') THEN true ELSE false END);");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Email",
+                table: "Users",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Users",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "UserId",
+                table: "Orders",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<decimal>(
+                name: "Total",
+                table: "Orders",
+                type: "numeric",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "Orders",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "Orders",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Orders",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<decimal>(
+                name: "UnitPrice",
+                table: "OrderItems",
+                type: "numeric",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Quantity",
+                table: "OrderItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "OrderId",
+                table: "OrderItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "GameId",
+                table: "OrderItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "OrderItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "Games",
+                type: "character varying(200)",
+                maxLength: 200,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 200);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Stock",
+                table: "Games",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<decimal>(
+                name: "Price",
+                table: "Games",
+                type: "numeric",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "Games",
+                type: "character varying(2000)",
+                maxLength: 2000,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 2000,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "Games",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Games",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "UserId",
+                table: "Carts",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Carts",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Quantity",
+                table: "CartItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "GameId",
+                table: "CartItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "CartId",
+                table: "CartItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "CartItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AlterColumn<string>(
+                name: "UserName",
+                table: "Users",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "PasswordHash",
+                table: "Users",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.Sql(
+                "ALTER TABLE \"Users\" ALTER COLUMN \"IsAdmin\" TYPE integer USING (CASE WHEN \"IsAdmin\" = true THEN 1 ELSE 0 END);");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Email",
+                table: "Users",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Users",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "UserId",
+                table: "Orders",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Total",
+                table: "Orders",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(decimal),
+                oldType: "numeric");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "Orders",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "Orders",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Orders",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "UnitPrice",
+                table: "OrderItems",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(decimal),
+                oldType: "numeric");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Quantity",
+                table: "OrderItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "OrderId",
+                table: "OrderItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "GameId",
+                table: "OrderItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "OrderItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "Games",
+                type: "TEXT",
+                maxLength: 200,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(200)",
+                oldMaxLength: 200);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Stock",
+                table: "Games",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Price",
+                table: "Games",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(decimal),
+                oldType: "numeric");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "Games",
+                type: "TEXT",
+                maxLength: 2000,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(2000)",
+                oldMaxLength: 2000,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "Games",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Games",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "UserId",
+                table: "Carts",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "Carts",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Quantity",
+                table: "CartItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "GameId",
+                table: "CartItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "CartId",
+                table: "CartItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "CartItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+        }
+    }
+}

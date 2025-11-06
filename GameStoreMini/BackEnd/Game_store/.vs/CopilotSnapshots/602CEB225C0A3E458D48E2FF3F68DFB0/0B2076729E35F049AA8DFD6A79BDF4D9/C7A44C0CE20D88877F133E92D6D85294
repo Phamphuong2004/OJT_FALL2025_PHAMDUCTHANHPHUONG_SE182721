@@ -1,0 +1,117 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using GameStoreMini.Data;
+using GameStoreMini.Dtos;
+using GameStoreMini.Models;
+using GameStoreMini.Services;
+using GameStoreMini.Utils;
+
+namespace GameStoreMini.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+        private readonly ITokenService _token;
+        private readonly IWebHostEnvironment _env;
+
+        public AuthController(AppDbContext db, ITokenService token, IWebHostEnvironment env)
+        {
+            _db = db;
+            _token = token;
+            _env = env;
+        }
+
+        // POST: /api/auth/register
+        [HttpPost("register")]
+        [RequestSizeLimit(10_000_000)] // limit upload to ~10MB
+        public async Task<IActionResult> Register([FromForm] RegisterDto dto)
+        {
+            // Basic validation
+            if (!dto.TermsAccepted) return BadRequest("You must accept terms.");
+            if (dto.Password != dto.ConfirmPassword) return BadRequest("Passwords do not match.");
+            if (_db.Users.Any(u => u.Email == dto.Email)) return BadRequest("Email already used.");
+
+            string? avatarUrl = null;
+            if (dto.Avatar != null && dto.Avatar.Length > 0)
+            {
+                var uploads = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads");
+                if (!Directory.Exists(uploads)) Directory.CreateDirectory(uploads);
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(dto.Avatar.FileName);
+                var filePath = Path.Combine(uploads, fileName);
+                await using var stream = System.IO.File.Create(filePath);
+                await dto.Avatar.CopyToAsync(stream);
+                avatarUrl = $"/uploads/{fileName}";
+            }
+
+            var user = new User
+            {
+                Email = dto.Email,
+                UserName = dto.UserName,
+                FullName = dto.FullName,
+                PhoneNumber = dto.PhoneNumber,
+                AvatarUrl = avatarUrl,
+                // Store a secure hash (never the plain password)
+                PasswordHash = PasswordHelper.HashPassword(dto.Password),
+                Role = Roles.Customer,
+                // For convenience set EmailConfirmed true and timestamps
+                EmailConfirmed = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+
+            // Return a JWT so frontend can use it immediately
+            var token = _token.CreateToken(user);
+            return Ok(new AuthResultDto { Token = token });
+        }
+
+        // POST: /api/auth/login
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginDto dto)
+        {
+            // Determine whether caller provided email or username
+            User? user = null;
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                user = _db.Users.FirstOrDefault(u => u.Email == dto.Email);
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.UserName))
+            {
+                user = _db.Users.FirstOrDefault(u => u.UserName == dto.UserName);
+            }
+            else
+            {
+                // Neither provided
+                return BadRequest(new { errors = new { Identifier = new[] { "Email or UserName is required." } }, title = "Validation error", status = 400 });
+            }
+
+            if (user == null) return Unauthorized("Invalid credentials.");
+
+            if (!PasswordHelper.VerifyPassword(user.PasswordHash, dto.Password))
+                return Unauthorized("Invalid credentials.");
+
+            // Ensure user has a role. If seeded admin email, make Admin; otherwise ensure Customer.
+            bool changed = false;
+            if (string.IsNullOrWhiteSpace(user.Role))
+            {
+                user.Role = Roles.Customer;
+                changed = true;
+            }
+            // If this is the known admin email, ensure Admin role
+            if (user.Email == "admin@gamestore.local" && user.Role != Roles.Admin)
+            {
+                user.Role = Roles.Admin;
+                changed = true;
+            }
+            if (changed)
+            {
+                user.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+            }
+            var token = _token.CreateToken(user);
+            return Ok(new AuthResultDto { Token = token });
+        }
+    }
+}

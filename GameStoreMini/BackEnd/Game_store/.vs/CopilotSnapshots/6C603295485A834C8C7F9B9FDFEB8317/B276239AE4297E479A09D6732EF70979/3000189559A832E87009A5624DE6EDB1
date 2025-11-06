@@ -1,0 +1,42 @@
+﻿using Microsoft.EntityFrameworkCore;
+using GameStoreMini.Models;
+
+namespace GameStoreMini.Data
+{
+    // The EF Core DbContext holds DbSet<TEntity> properties for each table.
+    public class AppDbContext : DbContext
+    {
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+        // Application tables
+        public DbSet<User> Users { get; set; } = null!;
+        public DbSet<Game> Games { get; set; } = null!;
+        public DbSet<Cart> Carts { get; set; } = null!;
+        public DbSet<CartItem> CartItems { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+        public DbSet<OrderItem> OrderItems { get; set; } = null!;
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Ensure email is unique
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            // Configure one-to-one between User and Cart (User may have a Cart)
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Cart)
+                .WithOne(c => c.User)
+                .HasForeignKey<Cart>(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure max lengths to match annotations to ensure consistent migrations
+            modelBuilder.Entity<User>().Property(u => u.Email).HasMaxLength(200);
+            modelBuilder.Entity<User>().Property(u => u.UserName).HasMaxLength(100);
+            modelBuilder.Entity<User>().Property(u => u.FullName).HasMaxLength(200);
+            modelBuilder.Entity<User>().Property(u => u.AvatarUrl).HasMaxLength(500);
+        }
+    }
+}
