@@ -1,0 +1,31 @@
+.review-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.review-summary.no-reviews {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.no-reviews-text {
+  font-size: 13px;
+}
+
+.review-count {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .review-summary {
+    font-size: 12px;
+  }
+
+  .review-count {
+    font-size: 12px;
+  }
+}

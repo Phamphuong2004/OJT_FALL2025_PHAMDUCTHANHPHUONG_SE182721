@@ -29,15 +29,18 @@ export function decodeToken(token) {
 export function getUserRole() {
   const token = getToken();
   const data = decodeToken(token);
-  // role might be in claim types: 'role' or 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
   if (!data) return null;
-  return (
-    data.role ||
-    data["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
-    null
-  );
-}
 
+  // Thử nhiều format role claim
+  const role =
+    data.role ||
+    data.Role ||
+    data["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+    data["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role"] ||
+    null;
+
+  return role;
+}
 export function isAuthenticated() {
   return !!getToken();
 }

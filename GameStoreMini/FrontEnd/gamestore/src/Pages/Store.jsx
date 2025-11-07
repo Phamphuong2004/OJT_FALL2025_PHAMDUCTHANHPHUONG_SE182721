@@ -3,7 +3,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import GameAPI from "../API/GameAPI";
 import { useCart } from "../Cart/CartProvider";
 import { useToast } from "../Components/Toast";
-import Pagination from "../Components/pagination";
+import Pagination from "../Components/Pagination";
+import ReviewSummary from "../Review/ReviewSummary";
+import WishlistButton from "../Wishlist/WishlistButton";
 import "../Decorate/Pages.css";
 
 export default function Store() {
@@ -17,10 +19,13 @@ export default function Store() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 9; // change to show more/less items per page
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const categoryId = searchParams.get("categoryId") || "";
   const q = searchParams.get("q") || "";
+  const minRating = searchParams.get("minRating") || "";
+  const sortBy = searchParams.get("sortBy") || "createdAt";
+  const sortOrder = searchParams.get("sortOrder") || "desc";
 
   useEffect(() => {
     let mounted = true;
@@ -29,9 +34,15 @@ export default function Store() {
       setLoading(true);
       setError(null);
       try {
-        const params = { page: currentPage, pageSize };
+        const params = {
+          page: currentPage,
+          pageSize,
+          sortBy,
+          sortOrder,
+        };
         if (categoryId) params.categoryId = categoryId;
         if (q) params.q = q;
+        if (minRating) params.minRating = minRating;
 
         const res = await GameAPI.getAll(params);
 
@@ -100,13 +111,23 @@ export default function Store() {
     return () => {
       mounted = false;
     };
-  }, [categoryId, q, currentPage]);
+  }, [categoryId, q, minRating, sortBy, sortOrder, currentPage]);
 
   const [categories, setCategories] = useState([]);
-  const [sort, setSort] = useState("popular");
   const [addingMap, setAddingMap] = useState({}); // track adding per game id
   const { addToCart: addToCartCtx } = useCart();
   const toast = useToast();
+
+  // Helper function to update query params
+  const updateFilter = (key, value) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set(key, value);
+    } else {
+      newParams.delete(key);
+    }
+    setSearchParams(newParams);
+  };
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil((totalCount || 0) / pageSize));
@@ -129,7 +150,7 @@ export default function Store() {
   // Reset to first page when filters/search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [categoryId, q]);
+  }, [categoryId, q, minRating, sortBy]);
 
   const currencyFormatter = new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -172,17 +193,101 @@ export default function Store() {
           <div className="muted">Tìm và mua những trò chơi hay nhất</div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="form-card small"
-          >
-            <option value="popular">Phổ biến</option>
-            <option value="newest">Mới nhất</option>
-            <option value="price_asc">Giá: thấp → cao</option>
-            <option value="price_desc">Giá: cao → thấp</option>
-          </select>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Rating Filter */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>
+              Đánh giá
+            </label>
+            <select
+              value={minRating}
+              onChange={(e) => updateFilter("minRating", e.target.value)}
+              style={{
+                padding: "8px 32px 8px 12px",
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                fontSize: 14,
+                backgroundColor: "white",
+                cursor: "pointer",
+                outline: "none",
+                minWidth: 160,
+              }}
+            >
+              <option value="">Tất cả đánh giá</option>
+              <option value="4.5">⭐ 4.5+ sao</option>
+              <option value="4">⭐ 4+ sao</option>
+              <option value="3">⭐ 3+ sao</option>
+              <option value="2">⭐ 2+ sao</option>
+            </select>
+          </div>
+
+          {/* Sort Options */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>
+              Sắp xếp theo
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <select
+                value={sortBy}
+                onChange={(e) => updateFilter("sortBy", e.target.value)}
+                style={{
+                  padding: "8px 32px 8px 12px",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  backgroundColor: "white",
+                  cursor: "pointer",
+                  outline: "none",
+                  minWidth: 160,
+                }}
+              >
+                <option value="createdAt">Mới nhất</option>
+                <option value="rating">Đánh giá cao</option>
+                <option value="reviews">Nhiều review</option>
+                <option value="price">Giá</option>
+                <option value="title">Tên A-Z</option>
+              </select>
+
+              {/* Sort Order Toggle */}
+              <button
+                onClick={() =>
+                  updateFilter(
+                    "sortOrder",
+                    sortOrder === "asc" ? "desc" : "asc"
+                  )
+                }
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                  backgroundColor: "white",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 42,
+                  transition: "all 0.2s",
+                }}
+                title={sortOrder === "asc" ? "Tăng dần" : "Giảm dần"}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#f3f4f6")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "white")
+                }
+              >
+                {sortOrder === "asc" ? "↑" : "↓"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -205,8 +310,12 @@ export default function Store() {
               <li key={c.id} style={{ marginBottom: 6 }}>
                 <button
                   className="btn ghost small"
-                  onClick={() => navigate(`/store?categoryId=${c.id}`)}
-                  style={{ width: "100%", textAlign: "left" }}
+                  onClick={() => updateFilter("categoryId", c.id)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    background: categoryId == c.id ? "#e0e7ff" : "transparent",
+                  }}
                 >
                   {c.name}
                 </button>
@@ -268,9 +377,16 @@ export default function Store() {
                     {g.shortDescription ?? g.description?.slice?.(0, 80) ?? ""}
                   </div>
 
+                  {/* Review Summary */}
+                  <ReviewSummary
+                    averageRating={g.averageRating || 0}
+                    totalReviews={g.reviewCount || 0}
+                  />
+
                   <div className="card-actions" style={{ marginTop: 12 }}>
                     <div style={{ fontWeight: 800 }}>{price}</div>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <WishlistButton gameId={g.id ?? g.gameId} />
                       <button
                         className="btn ghost"
                         onClick={() => navigate(`/games/${g.id ?? g.gameId}`)}

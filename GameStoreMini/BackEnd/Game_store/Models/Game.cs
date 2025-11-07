@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System;
 using System.Collections.Generic;
+using Game_store.Models;
 
 namespace GameStoreMini.Models
 {
@@ -33,5 +34,12 @@ namespace GameStoreMini.Models
 
         // Many-to-many navigation to categories
         public ICollection<Category> Categories { get; set; } = new List<Category>();
+
+        // Thêm các thuộc tính rating và reviews
+        public double AverageRating { get; set; } = 0.0; // Điểm đánh giá trung bình
+        public int ReviewCount { get; set; } = 0; // Số lượng đánh giá  
+
+        // Navigation property for reviews
+        public ICollection<ReviewGame> Reviews { get; set; } = new List<ReviewGame>();
     }
 }

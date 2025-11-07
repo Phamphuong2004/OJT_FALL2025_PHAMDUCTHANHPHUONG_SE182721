@@ -3,7 +3,10 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { getOne as getGame } from "../API/GameAPI";
 import { useCart } from "../Cart/CartProvider";
 import { useToast } from "../Components/Toast";
+import { getUserRole } from "../Auth/useAuth";
+import viewHistoryAPI from "../API/ViewHistoryAPI";
 import "../Decorate/GameDetails.css"; // <-- imported stylesheet
+import ReviewList from "../Review/ReviewList";
 
 export default function GameDetails() {
   const { id } = useParams();
@@ -28,6 +31,20 @@ export default function GameDetails() {
         const payload =
           res && typeof res === "object" && "data" in res ? res.data : res;
         setGame(payload ?? null);
+
+        // Tự động lưu vào lịch sử xem nếu user đã đăng nhập VÀ KHÔNG PHẢI ADMIN
+        const token = localStorage.getItem("token");
+        const userRole = getUserRole();
+        if (token && payload && userRole !== "Admin") {
+          try {
+            await viewHistoryAPI.addViewHistory(
+              payload.id ?? payload.gameId ?? id
+            );
+          } catch (err) {
+            // Không hiển thị lỗi cho user, chỉ log
+            console.log("Could not save view history:", err);
+          }
+        }
       } catch (e) {
         console.error("Failed to load game", e);
         setGame(null);
@@ -175,6 +192,11 @@ export default function GameDetails() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div style={{ marginTop: 48 }}>
+        <ReviewList gameId={id} />
       </div>
     </div>
   );

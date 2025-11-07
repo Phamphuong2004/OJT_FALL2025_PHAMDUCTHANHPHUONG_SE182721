@@ -16,6 +16,7 @@
     "formik": "^2.4.6",
     "hooks": "^0.3.2",
     "jwt-decode": "^4.0.0",
+    "lucide-react": "^0.552.0",
     "npm": "^11.6.2",
     "react": "^19.2.0",
     "react-dom": "^19.1.1",

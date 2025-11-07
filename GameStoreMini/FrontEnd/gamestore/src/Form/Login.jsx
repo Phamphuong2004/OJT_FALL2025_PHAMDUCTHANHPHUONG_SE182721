@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import UserAPI from "../API/UserAPI";
 import { useNavigate } from "react-router-dom";
+import { getUserRole } from "../Auth/useAuth";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import "../Decorate/form.css";
@@ -77,15 +78,29 @@ export default function Login() {
             const token = extractToken(res);
             if (token) {
               UserAPI.setAuthToken(token);
+
+              // Dispatch authChanged event để Navbar update role
+              window.dispatchEvent(new Event("authChanged"));
+
               setMessageType("success");
               setMessage("Đăng nhập thành công. Đang chuyển hướng...");
               console.log("Login successful, token:", token);
-              // Wait a bit longer to let side effects complete
+
+              // Redirect dựa trên role
               setTimeout(() => {
-                window.location.href = "/";
+                const userRole = getUserRole();
+                if (userRole === "Admin") {
+                  window.location.href = "/admin/promotion"; // Redirect Admin về trang quản lý
+                } else {
+                  window.location.href = "/"; // Customer về trang chủ
+                }
               }, 800);
             } else {
               // No token returned but no error: show generic success
+
+              // Dispatch authChanged event
+              window.dispatchEvent(new Event("authChanged"));
+
               setMessageType("success");
               setMessage("Đăng nhập thành công. Đang chuyển hướng...");
               console.log("Login successful (no token)");

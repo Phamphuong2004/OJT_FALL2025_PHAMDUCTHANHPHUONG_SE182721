@@ -103,6 +103,19 @@ const OrderTracking = lazyPage(
   () => import("../Order/OrderTracking"),
   "Order Tracking (placeholder)"
 );
+const Wishlist = lazyPage(
+  () => import("../Wishlist/Wishlist"),
+  "Wishlist (placeholder)"
+);
+const ViewHistory = lazyPage(
+  () => import("../ViewHistory/ViewHistory"),
+  "View History (placeholder)"
+);
+const AdminReviewDashboard = lazyPage(
+  () => import("../Admin/AdminReviewDashboard"),
+  "Admin Review Dashboard (placeholder)"
+);
+
 // Layout component that keeps Navbar persistent and provides search/navigation behavior
 function Layout() {
   const navigate = useNavigate();
@@ -159,6 +172,24 @@ export default function AppRoutes() {
               <Route path="promotions/:slug" element={<PromotionDetail />} />
               <Route path="account" element={<Account />} />
 
+              {/* Customer-only routes - Admin không truy cập được */}
+              <Route
+                path="wishlist"
+                element={
+                  <RequireCustomer>
+                    <Wishlist />
+                  </RequireCustomer>
+                }
+              />
+              <Route
+                path="history"
+                element={
+                  <RequireCustomer>
+                    <ViewHistory />
+                  </RequireCustomer>
+                }
+              />
+
               {/* Admin promotion routes */}
               <Route
                 path="admin/promotion"
@@ -193,6 +224,15 @@ export default function AppRoutes() {
                   </RequireRole>
                 }
               />
+              {/* Admin reviews route */}
+              <Route
+                path="admin/reviews"
+                element={
+                  <RequireRole role="Admin">
+                    <AdminReviewDashboard />
+                  </RequireRole>
+                }
+              />
             </Route>
 
             <Route path="old-home" element={<Navigate to="/" replace />} />
@@ -217,5 +257,22 @@ function RequireRole({ role, children }) {
   if (!userRole) return <Navigate to="/login" replace />;
   if (userRole !== role)
     return <div style={{ padding: 20 }}>403 — Access denied</div>;
+  return children;
+}
+
+// Wrapper component để chỉ cho phép Customer (không cho Admin)
+function RequireCustomer({ children }) {
+  if (!isAuthenticated()) return <Navigate to="/login" replace />;
+  const userRole = getUserRole();
+  if (!userRole) return <Navigate to="/login" replace />;
+  if (userRole === "Admin")
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        <h3>403 — Tính năng này chỉ dành cho khách hàng</h3>
+        <p style={{ color: "#6b7280", marginTop: 8 }}>
+          Admin không cần wishlist và lịch sử xem
+        </p>
+      </div>
+    );
   return children;
 }

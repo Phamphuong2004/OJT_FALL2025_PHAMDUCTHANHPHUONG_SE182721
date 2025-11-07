@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using GameStoreMini.Models;
+using Game_store.Models;
 
 namespace GameStoreMini.Data
 {
@@ -20,6 +21,10 @@ namespace GameStoreMini.Data
         public DbSet<Game_store.Models.Promotion> Promotions { get; set; } = null!;
         public DbSet<Game_store.Models.PromotionGame> PromotionGames { get; set; } = null!;
         public DbSet<Game_store.Models.PromotionClaim> PromotionClaims { get; set; } = null!;
+        public DbSet<ReviewGame> ReviewGames { get; set; }
+        public DbSet<ReviewHelpful> ReviewHelpfuls { get; set; }
+        public DbSet<Game_store.Models.Wishlist> Wishlists { get; set; } = null!;
+        public DbSet<Game_store.Models.ViewHistory> ViewHistories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -100,6 +105,67 @@ namespace GameStoreMini.Data
             modelBuilder.Entity<Game_store.Models.PromotionClaim>()
                 .HasIndex(pc => new { pc.UserId });
 
+            // Review configuration
+            modelBuilder.Entity<ReviewGame>()
+                .HasOne(r => r.Game)
+                .WithMany(g => g.Reviews)
+                .HasForeignKey(r => r.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ReviewGame>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ReviewHelpful configuration
+            modelBuilder.Entity<ReviewHelpful>()
+                .HasOne(rh => rh.Review)
+                .WithMany()
+                .HasForeignKey(rh => rh.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ReviewHelpful>()
+                .HasIndex(rh => new { rh.ReviewId, rh.UserId })
+                .IsUnique(); // Một user chỉ vote helpful 1 lần cho 1 review
+
+            // Wishlist configuration
+            modelBuilder.Entity<Game_store.Models.Wishlist>()
+                .HasOne(w => w.User)
+                .WithMany()
+                .HasForeignKey(w => w.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Game_store.Models.Wishlist>()
+                .HasOne(w => w.Game)
+                .WithMany()
+                .HasForeignKey(w => w.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Game_store.Models.Wishlist>()
+                .HasIndex(w => new { w.UserId, w.GameId })
+                .IsUnique(); // Một user chỉ có thể thêm 1 game 1 lần vào wishlist
+
+            // ViewHistory configuration
+            modelBuilder.Entity<Game_store.Models.ViewHistory>()
+                .HasOne(vh => vh.User)
+                .WithMany()
+                .HasForeignKey(vh => vh.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Game_store.Models.ViewHistory>()
+                .HasOne(vh => vh.Game)
+                .WithMany()
+                .HasForeignKey(vh => vh.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Game_store.Models.ViewHistory>()
+                .HasIndex(vh => new { vh.UserId, vh.GameId })
+                .IsUnique(); // Một user chỉ có 1 record cho mỗi game
+
+            modelBuilder.Entity<Game_store.Models.ViewHistory>()
+                .HasIndex(vh => vh.LastViewedAt);
+
             // Order configuration: ensure Id is auto-generated
             modelBuilder.Entity<Order>()
                 .Property(o => o.Id)
@@ -113,4 +179,4 @@ namespace GameStoreMini.Data
             // Location data already exists via migration 20251104044210_AddLocations
         }
     }
-}       
+}

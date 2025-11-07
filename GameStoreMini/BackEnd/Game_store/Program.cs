@@ -20,17 +20,45 @@ builder.Services.AddSwaggerGen();
 // SignalR for realtime cart updates
 builder.Services.AddSignalR();
 
-// CORS - allow frontend dev origin(s)
+// SignalR for realtime cart updates
+builder.Services.AddSignalR();
+
+// ===== CORS Configuration =====
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowLocal", policy =>
+    if (builder.Environment.IsDevelopment())
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5179", "https://localhost:7154")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
+        // Development: Cho phép tất cả localhost ports
+        options.AddPolicy("AllowFrontend", policy =>
+        {
+            policy.SetIsOriginAllowed(origin =>
+            {
+                // Cho phép tất cả localhost với bất kỳ port nào
+                if (string.IsNullOrEmpty(origin)) return false;
+                var uri = new Uri(origin);
+                return uri.Host == "localhost" || uri.Host == "127.0.0.1";
+            })
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+        });
+    }
+    else
+    {
+        // Production: Chỉ định cụ thể origins
+        options.AddPolicy("AllowFrontend", policy =>
+        {
+            policy.WithOrigins(
+                    "https://yourdomain.com",  // Thay bằng domain thật
+                    "https://www.yourdomain.com"
+                  )
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
+    }
 });
+// ===== HẾT CORS Configuration =====
 
 // Configure PostgreSQL database. The connection string is in appsettings.json.
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -38,6 +66,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Register our token service which creates JWTs.
 builder.Services.AddScoped<ITokenService, TokenService>();
+
+// Register review service
+builder.Services.AddScoped<Game_store.Services.IReviewService, Game_store.Services.ReviewService>();
 
 // Read JWT settings and configure authentication.
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -151,7 +182,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Enable CORS early so browser preflight and calls are allowed
-app.UseCors("AllowLocal");
+app.UseCors("AllowFrontend"); // hoặc "AllowAllOrigins"
 
 app.UseHttpsRedirection();
 
