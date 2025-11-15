@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
 using System;
+using Game_store.Models;
 
 namespace GameStoreMini.Models
 {
@@ -28,19 +29,24 @@ namespace GameStoreMini.Models
         [MaxLength(200)]
         public string? FullName { get; set; }
 
-        // Phone number (optional)
-        [Phone]
-        public string? PhoneNumber { get; set; }
+    // Phone number (optional)
+    [Phone]
+    public string? PhoneNumber { get; set; }
 
-        // Avatar image URL (stored after upload)
-        [MaxLength(500)]
-        public string? AvatarUrl { get; set; }
+    // Date of Birth (optional)
+    public DateTime? DateOfBirth { get; set; }
 
-        // Store password hash (never store plain passwords)
-        [Required]
-        public string PasswordHash { get; set; } = string.Empty;
+    // Gender (optional)
+    [MaxLength(50)]
+    public string? Gender { get; set; }
 
-        // Role (e.g. "Customer", "Admin") - prefer roles over boolean flags
+    // Avatar image URL (stored after upload)
+    [MaxLength(500)]
+    public string? Avatar { get; set; }
+
+    // Store password hash (never store plain passwords)
+    [Required]
+    public string PasswordHash { get; set; } = string.Empty;        // Role (e.g. "Customer", "Admin") - prefer roles over boolean flags
         [Required, MaxLength(50)]
         public string Role { get; set; }
 
@@ -65,5 +71,8 @@ namespace GameStoreMini.Models
 
         // One user can have many orders
         public ICollection<Order> Orders { get; set; }
+
+        // One user can have many addresses
+        public ICollection<Address> Addresses { get; set; } = new List<Address>();
     }
 }

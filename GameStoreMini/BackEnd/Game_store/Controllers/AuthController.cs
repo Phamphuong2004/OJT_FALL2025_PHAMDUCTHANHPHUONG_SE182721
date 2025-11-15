@@ -83,7 +83,7 @@ namespace GameStoreMini.Controllers
                 UserName = dto.UserName,
                 FullName = dto.FullName,
                 PhoneNumber = dto.PhoneNumber,
-                AvatarUrl = avatarUrl,
+                Avatar = avatarUrl,
                 // Store a secure hash (never the plain password)
                 PasswordHash = PasswordHelper.HashPassword(dto.Password),
                 Role = Roles.Customer,

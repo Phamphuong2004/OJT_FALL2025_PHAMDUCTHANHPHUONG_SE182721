@@ -363,14 +363,29 @@ export async function getProfile() {
 // Update current user's profile. `payload` should be an object with writable fields
 // e.g. { fullName: 'New Name', phoneNumber: '0123...' }
 export async function updateProfile(payload) {
-  // Try PATCH first; fall back to PUT if server expects that
   try {
-    const res = await api.patch(`/users/me`, payload);
+    const res = await api.put(`/users/profile`, payload);
+    // Update localStorage user profile
+    if (res.data) {
+      const currentProfile = JSON.parse(
+        localStorage.getItem("userProfile") || "{}"
+      );
+      const updatedProfile = { ...currentProfile, ...res.data };
+      localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+      window.dispatchEvent(new Event("authChanged"));
+    }
     return res.data;
   } catch (err) {
-    // if server doesn't accept PATCH, try PUT
-    const res = await api.put(`/users/me`, payload);
+    throw err;
+  }
+}
+
+export async function changePassword(passwordData) {
+  try {
+    const res = await api.post(`/users/change-password`, passwordData);
     return res.data;
+  } catch (err) {
+    throw err;
   }
 }
 
@@ -381,7 +396,7 @@ export async function refreshToken() {
     const token = res?.data?.token || res?.data?.Token || res?.data;
     if (token) {
       // setAuthToken đã có trong file: lưu token + fetch profile
-      setAuthToken(token);
+      setAuthToken(token, res);
       return token;
     }
   } catch (e) {
@@ -389,4 +404,13 @@ export async function refreshToken() {
   }
   return null;
 }
-export default { login, register, setAuthToken, logout };
+export default {
+  login,
+  register,
+  setAuthToken,
+  logout,
+  getProfile,
+  updateProfile,
+  changePassword,
+  refreshToken,
+};

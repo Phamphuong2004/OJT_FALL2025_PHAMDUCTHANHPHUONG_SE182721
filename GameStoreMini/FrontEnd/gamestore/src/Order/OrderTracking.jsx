@@ -1,10 +1,34 @@
 import React, { useEffect, useState } from "react";
-import api from "../API/UserAPI";
+import { api } from "../API/ApiClient";
+import { useSearchParams } from "react-router-dom";
+
 export default function OrderTracking() {
+  const [searchParams] = useSearchParams();
   const [order, setOrder] = useState(null);
   const [email, setEmail] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [myOrders, setMyOrders] = useState([]);
+
+  useEffect(() => {
+    // Tự động load order nếu có orderNumber trong URL (từ payment redirect)
+    const urlOrderNumber = searchParams.get("orderNumber");
+    if (urlOrderNumber) {
+      setOrderNumber(urlOrderNumber);
+      // Tự động load order detail cho user đã đăng nhập
+      (async () => {
+        try {
+          const token = localStorage.getItem("token");
+          if (token) {
+            const r = await api.get(`/orders/${urlOrderNumber}`);
+            setOrder(r.data);
+          }
+        } catch (e) {
+          console.error("Auto load order failed", e);
+        }
+      })();
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     // try fetch user orders if logged in
     (async () => {

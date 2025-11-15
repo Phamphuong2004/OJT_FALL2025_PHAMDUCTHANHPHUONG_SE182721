@@ -17,40 +17,38 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// SignalR for realtime cart updates
-builder.Services.AddSignalR();
+// ⭐ THÊM DbContext
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// SignalR for realtime cart updates
-builder.Services.AddSignalR();
-
-// ===== CORS Configuration =====
+// ⭐ THÊM CORS
 builder.Services.AddCors(options =>
 {
     if (builder.Environment.IsDevelopment())
     {
-        // Development: Cho phép tất cả localhost ports
+        // Development: Cho phép mọi localhost
         options.AddPolicy("AllowFrontend", policy =>
         {
             policy.SetIsOriginAllowed(origin =>
-            {
-                // Cho phép tất cả localhost với bất kỳ port nào
-                if (string.IsNullOrEmpty(origin)) return false;
-                var uri = new Uri(origin);
-                return uri.Host == "localhost" || uri.Host == "127.0.0.1";
-            })
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
+                  {
+                      if (string.IsNullOrEmpty(origin)) return false;
+                      var uri = new Uri(origin);
+                      return uri.Host == "localhost" || uri.Host == "127.0.0.1";
+                  })
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
         });
     }
     else
     {
-        // Production: Chỉ định cụ thể origins
+        // Production: Chỉ cho phép domain cụ thể
         options.AddPolicy("AllowFrontend", policy =>
         {
             policy.WithOrigins(
-                    "https://yourdomain.com",  // Thay bằng domain thật
-                    "https://www.yourdomain.com"
+                    "https://dammegame.com",
+                    "https://www.dammegame.com",
+                    "https://api.dammegame.com"
                   )
                   .AllowAnyMethod()
                   .AllowAnyHeader()
@@ -58,17 +56,18 @@ builder.Services.AddCors(options =>
         });
     }
 });
-// ===== HẾT CORS Configuration =====
 
-// Configure PostgreSQL database. The connection string is in appsettings.json.
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// SignalR for realtime cart updates
+builder.Services.AddSignalR();
 
 // Register our token service which creates JWTs.
 builder.Services.AddScoped<ITokenService, TokenService>();
 
 // Register review service
 builder.Services.AddScoped<Game_store.Services.IReviewService, Game_store.Services.ReviewService>();
+
+// Register VnPay payment service
+builder.Services.AddScoped<Game_store.Services.VnPayService>();
 
 // Read JWT settings and configure authentication.
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -81,7 +80,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false; // set true in production
+    options.RequireHttpsMetadata = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -90,23 +89,17 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSection.GetValue<string>("Audience"),
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateLifetime = true
-            ,
-            // Ensure Role claim from JWT is mapped correctly to ClaimsPrincipal.IsInRole
-            // Token issuers sometimes use the long claim type URI; try the common ones.
-            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+        ValidateLifetime = true,
+        RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
     };
 });
 
-// Optional: add an authorization policy named "RequireAdmin" that requires the Admin role.
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireAdmin", policy => policy.RequireRole(Roles.Admin));
 });
 
 builder.WebHost.UseWebRoot("wwwroot");
-// Explicitly set URLs so HTTPS redirection middleware can determine the HTTPS port in development.
-// These should match Properties/launchSettings.json (https://localhost:7154; http://localhost:5179)
 builder.WebHost.UseUrls("https://localhost:7154", "http://localhost:5179");
 
 var app = builder.Build();
@@ -181,12 +174,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Enable CORS early so browser preflight and calls are allowed
-app.UseCors("AllowFrontend"); // hoặc "AllowAllOrigins"
+app.UseCors("AllowFrontend");
 
-app.UseHttpsRedirection();
+app.UseRouting();
 
-// Enable authentication/authorization middleware so protected endpoints work.
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -1,0 +1,307 @@
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import OrderAPI from "../API/OrderAPI";
+import "../Decorate/MyOrders.css";
+
+const MyOrders = () => {
+  const [activeTab, setActiveTab] = useState("all");
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const tabs = [
+    { id: "all", label: "Tất cả", count: 0 },
+    { id: "pending", label: "Chờ xác nhận", count: 0 },
+    { id: "processing", label: "Đang xử lý", count: 0 },
+    { id: "shipping", label: "Đang giao", count: 0 },
+    { id: "completed", label: "Hoàn thành", count: 0 },
+    { id: "cancelled", label: "Đã hủy", count: 0 },
+    { id: "refund", label: "Trả hàng/Hoàn tiền", count: 0 },
+  ];
+
+  useEffect(() => {
+    fetchOrders();
+  }, [activeTab]);
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      console.log("[MyOrders] Fetching orders...");
+      const data = await OrderAPI.getMyOrders();
+      console.log("[MyOrders] Orders received:", data);
+      console.log("[MyOrders] Orders count:", data?.length || 0);
+
+      let filteredOrders = data || [];
+
+      // Filter based on active tab
+      if (activeTab !== "all") {
+        filteredOrders = filteredOrders.filter(
+          (order) => order.status?.toLowerCase() === activeTab
+        );
+      }
+
+      console.log("[MyOrders] Filtered orders count:", filteredOrders.length);
+      setOrders(filteredOrders);
+    } catch (error) {
+      console.error("[MyOrders] Failed to fetch orders:", error);
+      console.error("[MyOrders] Error response:", error.response);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: "#faad14",
+      processing: "#1890ff",
+      shipping: "#13c2c2",
+      completed: "#52c41a",
+      cancelled: "#f5222d",
+      refund: "#eb2f96",
+    };
+    return colors[status?.toLowerCase()] || "#666";
+  };
+
+  const getStatusText = (status) => {
+    const texts = {
+      pending: "Chờ xác nhận",
+      processing: "Đang xử lý",
+      shipping: "Đang giao",
+      completed: "Hoàn thành",
+      cancelled: "Đã hủy",
+      refund: "Hoàn tiền",
+    };
+    return texts[status?.toLowerCase()] || status;
+  };
+
+  const filteredOrders = orders.filter(
+    (order) =>
+      order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.items?.some((item) =>
+        item.gameName?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+  );
+
+  return (
+    <div className="my-orders-container">
+      {/* Header */}
+      <div className="orders-header">
+        <div className="header-user">
+          <i className="fas fa-user-circle"></i>
+          <span>Tài Khoản Của Tôi</span>
+        </div>
+        <div className="header-breadcrumb">
+          <Link to="/account">Tài khoản</Link>
+          <i className="fas fa-chevron-right"></i>
+          <span>Đơn Mua</span>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="orders-tabs">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`tab-item ${activeTab === tab.id ? "active" : ""}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+            {tab.count > 0 && <span className="tab-count">({tab.count})</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="orders-search">
+        <div className="search-box">
+          <i className="fas fa-search"></i>
+          <input
+            type="text"
+            placeholder="Bạn có thể tìm kiếm theo tên Game, Mã đơn hàng hoặc Tên Sản phẩm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Orders List */}
+      <div className="orders-content">
+        {loading ? (
+          <div className="loading-state">
+            <i className="fas fa-spinner fa-spin"></i>
+            <p>Đang tải đơn hàng...</p>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="empty-state">
+            <img src="/empty-order.png" alt="No orders" />
+            <p>Chưa có đơn hàng nào</p>
+          </div>
+        ) : (
+          <div className="orders-list">
+            {filteredOrders.map((order) => {
+              // Debug: Log toàn bộ order data
+              console.log("[MyOrders] Rendering order:", order);
+              console.log("[MyOrders] Order.total:", order.total);
+              console.log("[MyOrders] Order.items:", order.items);
+
+              // Tính lại total từ items nếu order.total = 0
+              let calculatedTotal = order.total || 0;
+              if (calculatedTotal === 0 && order.items?.length > 0) {
+                calculatedTotal = order.items.reduce((sum, item) => {
+                  const price = item.unitPrice || item.game?.price || 0;
+                  const quantity = item.quantity || 1;
+                  return sum + price * quantity;
+                }, 0);
+                console.log(
+                  "[MyOrders] Calculated total from items:",
+                  calculatedTotal
+                );
+              }
+
+              return (
+                <div key={order.id || order.orderId} className="order-card">
+                  {/* Order Header */}
+                  <div className="order-header">
+                    <div className="order-shop">
+                      <i className="fas fa-store"></i>
+                      <span className="shop-name">ĐAM MÊ GAME</span>
+                      <button className="chat-btn">
+                        <i className="fas fa-comment-dots"></i>
+                        Chat
+                      </button>
+                    </div>
+                    <div className="order-status">
+                      <span
+                        className="status-badge"
+                        style={{ color: getStatusColor(order.status) }}
+                      >
+                        {getStatusText(order.status)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="order-items">
+                    {order.items?.map((item, index) => {
+                      // Debug logging
+                      console.log(`[MyOrders] Item ${index}:`, item);
+                      console.log(`[MyOrders] Item unitPrice:`, item.unitPrice);
+                      console.log(
+                        `[MyOrders] Item game.price:`,
+                        item.game?.price
+                      );
+
+                      // Tính giá - ưu tiên unitPrice, fallback về game.price
+                      const price = item.unitPrice || item.game?.price || 0;
+                      const quantity = item.quantity || 1;
+                      const totalPrice = price * quantity;
+
+                      console.log(
+                        `[MyOrders] Calculated price:`,
+                        price,
+                        `quantity:`,
+                        quantity,
+                        `total:`,
+                        totalPrice
+                      );
+
+                      return (
+                        <div key={item.id || index} className="order-item">
+                          <div className="item-image">
+                            <img
+                              src={
+                                item.game?.imageUrl ||
+                                item.gameImage ||
+                                "/default-game.png"
+                              }
+                              alt={item.game?.title || item.gameName || "Game"}
+                            />
+                          </div>
+                          <div className="item-info">
+                            <h4 className="item-name">
+                              {item.game?.title ||
+                                item.gameName ||
+                                "Unknown Game"}
+                            </h4>
+                            <p className="item-desc">
+                              Phân loại hàng:{" "}
+                              {item.game?.category ||
+                                item.category ||
+                                "Standard Edition"}
+                            </p>
+                            <p className="item-quantity">x{quantity}</p>
+                          </div>
+                          <div className="item-price">
+                            <span className="sale-price">
+                              {totalPrice.toLocaleString("vi-VN")}₫
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Order Footer */}
+                  <div className="order-footer">
+                    <div className="order-info">
+                      <span className="order-number">
+                        Mã đơn: {order.orderNumber || order.id}
+                      </span>
+                      <span className="order-date">
+                        {new Date(order.createdAt).toLocaleDateString("vi-VN")}
+                      </span>
+                    </div>
+                    <div className="order-total">
+                      <span className="total-label">Thành tiền:</span>
+                      <span className="total-amount">
+                        {calculatedTotal.toLocaleString("vi-VN")}₫
+                      </span>
+                    </div>
+                    <div className="order-actions">
+                      {order.status === "completed" && (
+                        <>
+                          <button className="btn-secondary">Mua Lại</button>
+                          <button className="btn-secondary">
+                            Liên Hệ Người Bán
+                          </button>
+                        </>
+                      )}
+                      {order.status === "pending" && (
+                        <button className="btn-danger">Hủy Đơn Hàng</button>
+                      )}
+                      {order.status === "shipping" && (
+                        <button className="btn-success">
+                          Đã Nhận Được Hàng
+                        </button>
+                      )}
+                      <Link
+                        to={`/order/${order.id || order.orderId}`}
+                        className="btn-primary"
+                      >
+                        Xem Chi Tiết
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Delivery Status */}
+                  {order.status === "shipping" && (
+                    <div className="delivery-status">
+                      <i className="fas fa-truck"></i>
+                      <span>Giao hàng thành công</span>
+                      <span className="delivery-date">
+                        Đánh giá sản phẩm trước 02-12-2025
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MyOrders;

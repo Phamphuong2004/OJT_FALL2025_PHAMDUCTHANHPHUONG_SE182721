@@ -1,0 +1,6 @@
+### Fix Order Totals - Admin Only
+POST https://localhost:7154/api/orders/admin/recalculate-totals
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+Content-Type: application/json
+
+###

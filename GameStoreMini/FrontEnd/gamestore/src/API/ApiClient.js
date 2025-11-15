@@ -44,4 +44,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Helper function to extract error messages from API responses
+export const getErrorMessage = (error) => {
+  if (error.response?.data) {
+    const errorData = error.response.data;
+    if (typeof errorData === "string") {
+      return errorData;
+    }
+    if (errorData.message) {
+      return errorData.message;
+    }
+    if (errorData.title) {
+      return errorData.title;
+    }
+    if (errorData.errors) {
+      // Validation errors object
+      return Object.values(errorData.errors).flat().join(", ");
+    }
+  }
+  if (error.message) {
+    return error.message;
+  }
+  return "Đã xảy ra lỗi không xác định";
+};
+
 export default api;

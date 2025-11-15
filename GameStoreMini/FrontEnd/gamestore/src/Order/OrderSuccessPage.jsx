@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import OrderAPI from "../API/OrderAPI";
+import { isAuthenticated } from "../Auth/useAuth";
 import "../Decorate/OrderSuccess.css";
 
 export default function OrderSuccessPage() {
@@ -25,6 +26,8 @@ export default function OrderSuccessPage() {
         if (state?.orderId) {
           console.log("[OrderSuccessPage] Loading order by ID:", state.orderId);
           const orderData = await OrderAPI.getOrder(state.orderId);
+          console.log("[OrderSuccessPage] Order data received:", orderData);
+          console.log("[OrderSuccessPage] Order items:", orderData?.items);
           setOrder(orderData);
         } else if (state?.orderNumber && state?.email) {
           console.log(
@@ -131,10 +134,9 @@ export default function OrderSuccessPage() {
         <div className="order-number-section">
           <p className="label">Mã đơn hàng:</p>
           <p className="order-number">
-            {state?.orderNumber ??
-              order?.orderNumber ??
-              order?.OrderNumber ??
-              state?.orderId ??
+            {state?.orderNumber ||
+              order?.orderNumber ||
+              state?.orderId ||
               "Đang cập nhật..."}
           </p>
         </div>
@@ -145,25 +147,17 @@ export default function OrderSuccessPage() {
             <div className="detail-row">
               <span className="detail-label">Tổng tiền:</span>
               <span className="detail-value">
-                {(
-                  order?.total ??
-                  order?.Total ??
-                  state?.total ??
-                  0
-                ).toLocaleString("vi-VN")}{" "}
-                đ
+                {(order?.total || state?.total || 0).toLocaleString("vi-VN")} đ
               </span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Trạng thái:</span>
               <span
                 className={`status-badge ${(
-                  order?.status ??
-                  order?.Status ??
-                  "pending"
+                  order?.status || "pending"
                 ).toLowerCase()}`}
               >
-                {order?.status ?? order?.Status ?? "Đang xử lý"}
+                {order?.status || "Đang xử lý"}
               </span>
             </div>
 
@@ -174,15 +168,15 @@ export default function OrderSuccessPage() {
                   {order.items.map((i, index) => (
                     <li key={i.id || index} className="item-row">
                       <span className="item-name">
-                        {i.gameTitle ??
-                          i.productName ??
-                          i.Game?.Title ??
+                        {i.game?.title ||
+                          i.gameTitle ||
+                          i.productName ||
                           "Sản phẩm"}
                       </span>
-                      <span className="item-quantity">x{i.quantity ?? 1}</span>
+                      <span className="item-quantity">x{i.quantity || 1}</span>
                       <span className="item-price">
                         {(
-                          (i.unitPrice ?? i.UnitPrice ?? 0) * (i.quantity ?? 1)
+                          (i.unitPrice || 0) * (i.quantity || 1)
                         ).toLocaleString("vi-VN")}{" "}
                         đ
                       </span>
@@ -196,8 +190,11 @@ export default function OrderSuccessPage() {
 
         {/* Nút hành động */}
         <div className="action-buttons">
-          <Link to="/orders/track" className="btn btn-track">
-            📦 Theo dõi đơn hàng
+          <Link
+            to={isAuthenticated() ? "/orders" : "/orders/track"}
+            className="btn btn-track"
+          >
+            📦 {isAuthenticated() ? "Đơn hàng của tôi" : "Theo dõi đơn hàng"}
           </Link>
           <Link to="/store" className="btn btn-continue">
             🛒 Tiếp tục mua sắm

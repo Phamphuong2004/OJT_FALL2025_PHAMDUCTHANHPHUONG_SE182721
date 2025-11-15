@@ -17,6 +17,8 @@ export default function Navbar({ onSearch }) {
   const [auth, setAuth] = useState(() => isAuthenticated());
   const [role, setRole] = useState(() => getUserRole());
   const [accountOpen, setAccountOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
 
   const [userInfo, setUserInfo] = useState(() => {
     // Prefer a full profile fetched from the server (saved after login)
@@ -128,6 +130,26 @@ export default function Navbar({ onSearch }) {
     };
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userDropdownOpen && !event.target.closest(".gs-user-menu")) {
+        setUserDropdownOpen(false);
+      }
+      if (
+        adminDropdownOpen &&
+        !event.target.closest(".admin-dropdown-wrapper")
+      ) {
+        setAdminDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [userDropdownOpen, adminDropdownOpen]);
+
   async function onLoginClick() {
     if (isAuthenticated()) {
       navigate("/account");
@@ -188,22 +210,13 @@ export default function Navbar({ onSearch }) {
               </>
             )}
 
-            {/* Menu dành cho Admin - Chỉ hiện khi Admin login */}
+            {/* Menu dành cho Admin - Link đơn giản đến trang quản trị */}
             {auth && getUserRole() === "Admin" && (
-              <>
-                <li>
-                  <NavLink to="/admin/promotion">Quản lý khuyến mãi</NavLink>
-                </li>
-                <li>
-                  <NavLink to="/admin/add-game">Quản lý game</NavLink>
-                </li>
-                <li>
-                  <NavLink to="/admin/users">Quản lý người dùng</NavLink>
-                </li>
-                <li>
-                  <NavLink to="/admin/reviews">Quản lý reviews</NavLink>
-                </li>
-              </>
+              <li>
+                <NavLink to="/admin/system">
+                  <i className="fas fa-cog"></i> Quản trị hệ thống
+                </NavLink>
+              </li>
             )}
           </ul>
         </div>
@@ -299,19 +312,33 @@ export default function Navbar({ onSearch }) {
           )}
 
           {auth ? (
-            <div className="gs-user-menu">
+            <div
+              className="gs-user-menu"
+              onClick={(e) => {
+                e.stopPropagation();
+                setUserDropdownOpen(!userDropdownOpen);
+              }}
+            >
               <div className="gs-user-info">
                 <div className="gs-user-avatar">
-                  <span className="avatar-text">
-                    {userInfo?.name
-                      ? userInfo.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2)
-                      : "U"}
-                  </span>
+                  {userInfo?.avatar ? (
+                    <img
+                      src={userInfo.avatar}
+                      alt="Avatar"
+                      className="avatar-img"
+                    />
+                  ) : (
+                    <span className="avatar-text">
+                      {userInfo?.name
+                        ? userInfo.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)
+                        : "U"}
+                    </span>
+                  )}
                 </div>
                 <div className="gs-user-details">
                   <div className="gs-user-greeting">
@@ -323,62 +350,61 @@ export default function Navbar({ onSearch }) {
                   <div className="gs-user-role">
                     {userInfo?.role || "Customer"}
                   </div>
-                  {/* Show status warnings if profile indicates issues */}
-                  {userInfo?.emailConfirmed === false && (
-                    <div className="gs-user-status warn">
-                      Vui lòng xác nhận email
-                    </div>
-                  )}
-                  {userInfo?.lockoutEnd &&
-                    new Date(userInfo.lockoutEnd) > new Date() && (
-                      <div className="gs-user-status warn">
-                        Tài khoản đã bị khoá
-                      </div>
-                    )}
                 </div>
+                <i className="fas fa-chevron-down dropdown-icon"></i>
               </div>
-              <button
-                className="gs-logout-btn"
-                onClick={() => {
-                  apiLogout();
-                  setAuth(false);
-                  setRole(null);
-                  setUserInfo(null);
-                  navigate("/");
-                }}
-                aria-label="Đăng xuất"
-                title="Đăng xuất"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M16 17L21 12L16 7"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M21 12H9"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+
+              {userDropdownOpen && (
+                <div className="gs-user-dropdown">
+                  <Link to="/profile" className="dropdown-item">
+                    <i className="fas fa-user"></i>
+                    <span>Thông tin cá nhân</span>
+                  </Link>
+
+                  {getUserRole() !== "Admin" && (
+                    <>
+                      <Link to="/orders" className="dropdown-item">
+                        <i className="fas fa-box"></i>
+                        <span>Đơn hàng của tôi</span>
+                      </Link>
+
+                      <Link to="/wishlist" className="dropdown-item">
+                        <i className="fas fa-heart"></i>
+                        <span>Danh sách yêu thích</span>
+                      </Link>
+
+                      <Link to="/addresses" className="dropdown-item">
+                        <i className="fas fa-map-marker-alt"></i>
+                        <span>Địa chỉ giao hàng</span>
+                      </Link>
+                    </>
+                  )}
+
+                  {getUserRole() === "Admin" && (
+                    <Link to="/admin/system" className="dropdown-item">
+                      <i className="fas fa-cog"></i>
+                      <span>Quản trị hệ thống</span>
+                    </Link>
+                  )}
+
+                  <div className="dropdown-divider"></div>
+
+                  <button
+                    className="dropdown-item logout-item"
+                    onClick={() => {
+                      apiLogout();
+                      setAuth(false);
+                      setRole(null);
+                      setUserInfo(null);
+                      setUserDropdownOpen(false);
+                      navigate("/");
+                    }}
+                  >
+                    <i className="fas fa-sign-out-alt"></i>
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="gs-avatar-dropdown" tabIndex={0}>

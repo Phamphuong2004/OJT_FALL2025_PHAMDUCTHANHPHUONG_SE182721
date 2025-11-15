@@ -43,8 +43,19 @@ export async function getDistricts(city) {
   return res.data;
 }
 
+export async function getWards(city, district) {
+  if (!city) throw new Error("City parameter is required");
+  if (!district) throw new Error("District parameter is required");
+
+  const res = await api.get("/locations/wards", {
+    params: { city, district },
+  });
+  return res.data;
+}
+
 export default {
   getAllLocations,
   getCities,
   getDistricts,
+  getWards,
 };

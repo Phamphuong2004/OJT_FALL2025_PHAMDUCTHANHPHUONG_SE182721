@@ -18,6 +18,8 @@ namespace GameStoreMini.Data
         public DbSet<OrderItem> OrderItems { get; set; } = null!;
         public DbSet<Category> Categories { get; set; } = null!;
         public DbSet<Location> Locations { get; set; } = null!;
+        
+        public DbSet<Address> Addresses { get; set; } = null!;
         public DbSet<Game_store.Models.Promotion> Promotions { get; set; } = null!;
         public DbSet<Game_store.Models.PromotionGame> PromotionGames { get; set; } = null!;
         public DbSet<Game_store.Models.PromotionClaim> PromotionClaims { get; set; } = null!;
@@ -46,7 +48,7 @@ namespace GameStoreMini.Data
             modelBuilder.Entity<User>().Property(u => u.Email).HasMaxLength(200);
             modelBuilder.Entity<User>().Property(u => u.UserName).HasMaxLength(100);
             modelBuilder.Entity<User>().Property(u => u.FullName).HasMaxLength(200);
-            modelBuilder.Entity<User>().Property(u => u.AvatarUrl).HasMaxLength(500);
+            modelBuilder.Entity<User>().Property(u => u.Avatar).HasMaxLength(500);
 
             // Category configuration
             modelBuilder.Entity<Category>().Property(c => c.Name).HasMaxLength(100);
@@ -177,6 +179,33 @@ namespace GameStoreMini.Data
                 .ValueGeneratedOnAdd();
 
             // Location data already exists via migration 20251104044210_AddLocations
+            
+            // Configure Address
+            modelBuilder.Entity<Address>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+
+                // Index để tìm địa chỉ theo UserId nhanh hơn
+                entity.HasIndex(a => a.UserId);
+
+                // Index để tìm địa chỉ default nhanh hơn
+                entity.HasIndex(a => new { a.UserId, a.IsDefault });
+
+                // Relationship với User
+                entity.HasOne(a => a.User)
+                    .WithMany(u => u.Addresses)
+                    .HasForeignKey(a => a.UserId)
+                    .OnDelete(DeleteBehavior.Cascade); // Xóa User → xóa tất cả Address
+
+                // Constraints
+                entity.Property(a => a.FullName).IsRequired().HasMaxLength(100);
+                entity.Property(a => a.PhoneNumber).IsRequired().HasMaxLength(15);
+                entity.Property(a => a.Street).IsRequired().HasMaxLength(200);
+                entity.Property(a => a.Ward).IsRequired().HasMaxLength(100);
+                entity.Property(a => a.District).IsRequired().HasMaxLength(100);
+                entity.Property(a => a.City).IsRequired().HasMaxLength(100);
+                entity.Property(a => a.PostalCode).HasMaxLength(10);
+            });
         }
     }
 }

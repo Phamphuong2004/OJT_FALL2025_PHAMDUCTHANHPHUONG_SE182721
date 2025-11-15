@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getProfile, updateProfile } from "../API/UserAPI";
 import { isAuthenticated } from "../Auth/useAuth";
 import { useNavigate } from "react-router-dom";
+import AddressManager from "../Components/AddressManager";
 
 export default function Account() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function Account() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ fullName: "", phoneNumber: "" });
+  const [activeTab, setActiveTab] = useState("profile"); // profile | addresses
 
   useEffect(() => {
     let mounted = true;
@@ -113,59 +115,109 @@ export default function Account() {
     );
 
   return (
-    <div style={{ padding: 20, maxWidth: 900 }}>
-      <h2>Thông tin tài khoản</h2>
-      <div style={{ marginTop: 12 }}>
-        <div>
-          <b>Email:</b> {profile?.email}
-        </div>
-        <div>
-          <b>Vai trò:</b> {profile?.role || "Customer"}
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <b>Tên đầy đủ:</b>
-          {!editing ? (
-            <span style={{ marginLeft: 8 }}>
-              {profile?.fullName || profile?.fullName || "-"}
-            </span>
-          ) : (
-            <input
-              value={form.fullName}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, fullName: e.target.value }))
-              }
-              style={{ marginLeft: 8 }}
-            />
-          )}
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <b>Số điện thoại:</b>
-          {!editing ? (
-            <span style={{ marginLeft: 8 }}>{profile?.phoneNumber || "-"}</span>
-          ) : (
-            <input
-              value={form.phoneNumber}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, phoneNumber: e.target.value }))
-              }
-              style={{ marginLeft: 8 }}
-            />
-          )}
-        </div>
+    <div style={{ padding: 20, maxWidth: 1200, margin: "0 auto" }}>
+      <h2>Tài khoản của tôi</h2>
 
-        <div style={{ marginTop: 16 }}>
-          {!editing ? (
-            <button onClick={() => setEditing(true)}>Chỉnh sửa</button>
-          ) : (
-            <>
-              <button onClick={onSave} style={{ marginRight: 8 }}>
-                Lưu
-              </button>
-              <button onClick={() => setEditing(false)}>Huỷ</button>
-            </>
-          )}
-        </div>
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          borderBottom: "2px solid #eee",
+          marginBottom: "20px",
+        }}
+      >
+        <button
+          onClick={() => setActiveTab("profile")}
+          style={{
+            padding: "10px 20px",
+            border: "none",
+            borderBottom:
+              activeTab === "profile" ? "2px solid #4CAF50" : "none",
+            background: "none",
+            cursor: "pointer",
+            fontWeight: activeTab === "profile" ? "bold" : "normal",
+            color: activeTab === "profile" ? "#4CAF50" : "#666",
+          }}
+        >
+          Thông tin cá nhân
+        </button>
+        <button
+          onClick={() => setActiveTab("addresses")}
+          style={{
+            padding: "10px 20px",
+            border: "none",
+            borderBottom:
+              activeTab === "addresses" ? "2px solid #4CAF50" : "none",
+            background: "none",
+            cursor: "pointer",
+            fontWeight: activeTab === "addresses" ? "bold" : "normal",
+            color: activeTab === "addresses" ? "#4CAF50" : "#666",
+          }}
+        >
+          Địa chỉ giao hàng
+        </button>
       </div>
+
+      {/* Profile Tab */}
+      {activeTab === "profile" && (
+        <div style={{ marginTop: 12 }}>
+          <div>
+            <b>Email:</b> {profile?.email}
+          </div>
+          <div>
+            <b>Vai trò:</b> {profile?.role || "Customer"}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <b>Tên đầy đủ:</b>
+            {!editing ? (
+              <span style={{ marginLeft: 8 }}>
+                {profile?.fullName || profile?.fullName || "-"}
+              </span>
+            ) : (
+              <input
+                value={form.fullName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, fullName: e.target.value }))
+                }
+                style={{ marginLeft: 8 }}
+              />
+            )}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <b>Số điện thoại:</b>
+            {!editing ? (
+              <span style={{ marginLeft: 8 }}>
+                {profile?.phoneNumber || "-"}
+              </span>
+            ) : (
+              <input
+                value={form.phoneNumber}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, phoneNumber: e.target.value }))
+                }
+                style={{ marginLeft: 8 }}
+              />
+            )}
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            {!editing ? (
+              <button onClick={() => setEditing(true)}>Chỉnh sửa</button>
+            ) : (
+              <>
+                <button onClick={onSave} style={{ marginRight: 8 }}>
+                  Lưu
+                </button>
+                <button onClick={() => setEditing(false)}>Huỷ</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Addresses Tab */}
+      {activeTab === "addresses" && <AddressManager />}
     </div>
   );
 }

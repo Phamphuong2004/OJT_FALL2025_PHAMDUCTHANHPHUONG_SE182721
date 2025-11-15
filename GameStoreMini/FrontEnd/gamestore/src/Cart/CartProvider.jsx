@@ -250,8 +250,10 @@ export function CartProvider({ children }) {
     dispatch({ type: "CLEAR" });
     try {
       await CartAPI.clearCart();
-      toast.success("Đã xóa hết giỏ hàng");
-    } catch {
+      // Không toast ở đây nữa vì PaymentResult đã có message riêng
+      // toast.success("Đã xóa hết giỏ hàng");
+    } catch (err) {
+      console.error("Clear cart failed:", err);
       toast.error("Xóa giỏ hàng thất bại");
       dispatch({ type: "SET_ITEMS", payload: prevItems });
     }
@@ -298,27 +300,40 @@ export function CartProvider({ children }) {
           .withUrl(hubUrl, {
             accessTokenFactory: () => getToken() || undefined,
           })
-          .withAutomaticReconnect()
-          .configureLogging(signalR.LogLevel.Information)
+          .withAutomaticReconnect([0, 2000, 5000, 10000, 30000]) // Giới hạn retry: 0s, 2s, 5s, 10s, 30s rồi dừng
+          .configureLogging(signalR.LogLevel.Warning) // Giảm log spam
           .build();
 
+        // Debounce CartUpdated để tránh gọi API quá nhiều
+        let cartUpdateTimer = null;
         conn.on("CartUpdated", async () => {
-          try {
-            const r = await CartAPI.getCart();
-            if (r?.items)
-              dispatch({ type: "SET_ITEMS", payload: normalizeItems(r.items) });
-          } catch (e) {
-            console.warn("CartUpdated handler failed to sync cart:", e);
-          }
+          if (cartUpdateTimer) clearTimeout(cartUpdateTimer);
+          cartUpdateTimer = setTimeout(async () => {
+            try {
+              const r = await CartAPI.getCart();
+              if (r?.items)
+                dispatch({
+                  type: "SET_ITEMS",
+                  payload: normalizeItems(r.items),
+                });
+            } catch (e) {
+              console.warn("CartUpdated handler failed to sync cart:", e);
+            }
+          }, 300); // Đợi 300ms sau lần CartUpdated cuối cùng
         });
 
         conn.onclose((err) => {
           if (err) console.warn("SignalR connection closed with error:", err);
-          if (!stopped) {
-            // schedule reconnect attempt (automatic reconnect also helps, but we backoff start for initial connect)
-            retryCount = Math.min(10, retryCount + 1);
-            const backoff = Math.min(30000, 500 * 2 ** retryCount);
+          // Chỉ retry nếu chưa stop và số lần retry < 5
+          if (!stopped && retryCount < 5) {
+            retryCount++;
+            const backoff = Math.min(30000, 1000 * retryCount); // 1s, 2s, 3s, 4s, 5s
+            console.log(
+              `SignalR reconnecting in ${backoff}ms (attempt ${retryCount}/5)...`
+            );
             retryTimer = setTimeout(() => start(), backoff);
+          } else if (retryCount >= 5) {
+            console.warn("SignalR max retry attempts reached, giving up");
           }
         });
 
@@ -348,10 +363,17 @@ export function CartProvider({ children }) {
         }
       } catch (err) {
         console.warn("SignalR start failed:", err);
-        // exponential backoff retry for initial connect
-        retryCount = Math.min(10, retryCount + 1);
-        const backoff = Math.min(30000, 500 * 2 ** retryCount);
-        if (!stopped) retryTimer = setTimeout(() => start(), backoff);
+        // Giới hạn retry cho initial connect
+        if (!stopped && retryCount < 5) {
+          retryCount++;
+          const backoff = Math.min(30000, 1000 * retryCount);
+          console.log(
+            `SignalR initial connect retry in ${backoff}ms (attempt ${retryCount}/5)...`
+          );
+          retryTimer = setTimeout(() => start(), backoff);
+        } else if (retryCount >= 5) {
+          console.warn("SignalR max initial connect attempts reached");
+        }
       }
     };
 

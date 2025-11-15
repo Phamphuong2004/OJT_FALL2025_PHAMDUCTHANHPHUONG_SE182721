@@ -1,0 +1,265 @@
+.payment-result-container {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: fadeIn 0.5s ease-in;
+}
+
+.payment-result-card {
+  max-width: 550px;
+  width: 100%;
+  background: white;
+  padding: 50px 40px;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  animation: slideUp 0.6s ease-out;
+}
+
+.result-icon {
+  font-size: 100px;
+  margin-bottom: 25px;
+  animation: bounce 1s ease infinite;
+}
+
+.result-icon.success {
+  animation: scaleIn 0.6s ease-out;
+}
+
+.result-icon.error {
+  animation: shake 0.5s ease-out;
+}
+
+.result-title {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.result-title.success {
+  color: #10b981;
+}
+
+.result-title.error {
+  color: #dc2626;
+}
+
+.order-number {
+  font-size: 18px;
+  color: #6b7280;
+  margin-bottom: 15px;
+}
+
+.order-number strong {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.countdown-box {
+  margin-top: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 12px;
+  border: 2px solid #d1d5db;
+}
+
+.countdown-text {
+  color: #6b7280;
+  font-size: 16px;
+  margin: 0;
+}
+
+.countdown-number {
+  color: #2563eb;
+  font-size: 24px;
+  font-weight: bold;
+  display: inline-block;
+  animation: pulse 1s ease infinite;
+}
+
+.error-message {
+  color: #6b7280;
+  margin-bottom: 12px;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.error-code {
+  color: #9ca3af;
+  font-size: 14px;
+  margin-bottom: 30px;
+}
+
+.error-code strong {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.result-button {
+  padding: 14px 28px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  min-width: 160px;
+}
+
+.result-button.primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+}
+
+.result-button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.result-button.primary:active {
+  transform: translateY(0);
+}
+
+.result-button.secondary {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+}
+
+.result-button.secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+}
+
+.result-button.secondary:active {
+  transform: translateY(0);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .payment-result-card {
+    padding: 40px 25px;
+    margin: 0 15px;
+  }
+
+  .result-icon {
+    font-size: 80px;
+  }
+
+  .result-title {
+    font-size: 26px;
+  }
+
+  .order-number {
+    font-size: 16px;
+  }
+
+  .countdown-number {
+    font-size: 20px;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .result-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-result-container {
+    padding: 20px 10px;
+  }
+
+  .payment-result-card {
+    padding: 30px 20px;
+  }
+
+  .result-icon {
+    font-size: 70px;
+  }
+
+  .result-title {
+    font-size: 22px;
+  }
+
+  .countdown-box {
+    padding: 15px;
+  }
+}

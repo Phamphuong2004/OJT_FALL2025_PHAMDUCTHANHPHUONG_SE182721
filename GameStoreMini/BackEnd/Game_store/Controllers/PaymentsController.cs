@@ -1,42 +1,114 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using GameStoreMini.Data;
+using Game_store.Services;
 using GameStoreMini.Dtos;
-using GameStoreMini.Models;
 
-namespace GameStoreMini.Controllers
+namespace Game_store.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class PaymentsController : ControllerBase
     {
+        private readonly VnPayService _vnPayService;
         private readonly AppDbContext _db;
-        public PaymentsController(AppDbContext db) => _db = db;
 
-        // Development-only: create a mock payment for an order
-        [HttpPost("create")]
-        public IActionResult Create([FromBody] CreatePaymentDto dto)
+        public PaymentsController(VnPayService vnPayService, AppDbContext db)
         {
-            if (dto == null || string.IsNullOrEmpty(dto.OrderNumber)) return BadRequest();
-            var order = _db.Orders.FirstOrDefault(o => o.OrderNumber == dto.OrderNumber);
-            if (order == null) return NotFound();
-            // Return a mock payment id/url
-            var paymentId = Guid.NewGuid().ToString();
-            return Ok(new { paymentId, paymentUrl = $"/mock-pay/{paymentId}" });
+            _vnPayService = vnPayService;
+            _db = db;
         }
 
-        // Development-only: confirm a mock payment and mark order as paid
-        [HttpPost("confirm")]
-        public async Task<IActionResult> Confirm([FromBody] ConfirmPaymentDto dto)
+        [HttpPost("create-payment-url")]
+        public async Task<IActionResult> CreatePaymentUrl([FromBody] CreatePaymentRequest request)
         {
-            if (dto == null || string.IsNullOrEmpty(dto.OrderNumber)) return BadRequest();
-            var order = _db.Orders.FirstOrDefault(o => o.OrderNumber == dto.OrderNumber);
-            if (order == null) return NotFound();
+            try
+            {
+                var order = await _db.Orders
+                    .FirstOrDefaultAsync(o => o.OrderNumber == request.OrderNumber);
 
-            order.PaymentStatus = "Paid";
-            order.TransactionId = dto.TransactionId ?? Guid.NewGuid().ToString();
-            await _db.SaveChangesAsync();
+                if (order == null)
+                    return NotFound(new { message = "Không tìm thấy đơn hàng" });
 
-            return Ok(new { orderId = order.Id, orderNumber = order.OrderNumber, paymentStatus = order.PaymentStatus });
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                if (ipAddress == "::1") ipAddress = "127.0.0.1";
+                ipAddress ??= "127.0.0.1";
+                
+                var orderInfo = $"Order {order.OrderNumber}";
+
+                var paymentUrl = _vnPayService.CreatePaymentUrl(
+                    order.OrderNumber!,
+                    order.Total,
+                    orderInfo,
+                    ipAddress
+                );
+
+                return Ok(new { paymentUrl });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("vnpay-return")]
+        public async Task<IActionResult> VnPayReturn()
+        {
+            Console.WriteLine("🔔 VnPayReturn called!");
+            Console.WriteLine($"🔔 Query string: {Request.QueryString}");
+            
+            try
+            {
+                var vnpParams = Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
+                Console.WriteLine($"🔔 Params count: {vnpParams.Count}");
+                
+                if (!vnpParams.ContainsKey("vnp_SecureHash"))
+                {
+                    Console.WriteLine("❌ Missing vnp_SecureHash!");
+                    return Redirect("http://localhost:5173/payment/result?success=false&message=Missing signature");
+                }
+
+                var vnp_SecureHash = vnpParams["vnp_SecureHash"];
+
+                if (!_vnPayService.ValidateSignature(vnpParams, vnp_SecureHash))
+                {
+                    return Redirect("http://localhost:5173/payment/result?success=false&message=Invalid signature");
+                }
+
+                var vnp_ResponseCode = vnpParams["vnp_ResponseCode"];
+                var vnp_TxnRef = vnpParams["vnp_TxnRef"];
+                var vnp_TransactionNo = vnpParams.ContainsKey("vnp_TransactionNo") 
+                    ? vnpParams["vnp_TransactionNo"] 
+                    : null;
+
+                var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == vnp_TxnRef);
+                
+                if (order == null)
+                {
+                    return Redirect("http://localhost:5173/payment/result?success=false&message=Order not found");
+                }
+
+                if (vnp_ResponseCode == "00")
+                {
+                    order.PaymentStatus = "Paid";
+                    order.Status = "Confirmed";
+                    order.TransactionId = vnp_TransactionNo;
+                    await _db.SaveChangesAsync();
+
+                    return Redirect($"http://localhost:5173/payment/result?success=true&orderNumber={order.OrderNumber}");
+                }
+                else
+                {
+                    order.PaymentStatus = "Failed";
+                    await _db.SaveChangesAsync();
+
+                    return Redirect($"http://localhost:5173/payment/result?success=false&message=Payment failed&code={vnp_ResponseCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return Redirect($"http://localhost:5173/payment/result?success=false&message={ex.Message}");
+            }
         }
     }
 }

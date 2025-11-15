@@ -46,5 +46,26 @@ namespace GameStoreMini.Controllers
 
             return Ok(districts);
         }
+
+        // GET: /api/locations/wards?city=Hà Nội&district=Ba Đình
+        [HttpGet("wards")]
+        public async Task<IActionResult> GetWards([FromQuery] string? city, [FromQuery] string? district)
+        {
+            if (string.IsNullOrEmpty(city))
+                return BadRequest("City parameter is required");
+            
+            if (string.IsNullOrEmpty(district))
+                return BadRequest("District parameter is required");
+
+            var wards = await _db.Locations
+                .AsNoTracking()
+                .Where(l => l.City == city && l.District == district && !string.IsNullOrEmpty(l.Ward))
+                .Select(l => l.Ward!)
+                .Distinct()
+                .OrderBy(w => w)
+                .ToListAsync();
+
+            return Ok(wards);
+        }
     }
 }

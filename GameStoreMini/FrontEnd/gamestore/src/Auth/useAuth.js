@@ -41,8 +41,32 @@ export function getUserRole() {
 
   return role;
 }
+
+export function getUserEmail() {
+  const token = getToken();
+  const data = decodeToken(token);
+  if (!data) return null;
+
+  // Thử nhiều format email claim
+  const email =
+    data.email ||
+    data.Email ||
+    data[
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+    ] ||
+    null;
+
+  return email;
+}
+
 export function isAuthenticated() {
   return !!getToken();
 }
 
-export default { getToken, decodeToken, getUserRole, isAuthenticated };
+export default {
+  getToken,
+  decodeToken,
+  getUserRole,
+  getUserEmail,
+  isAuthenticated,
+};

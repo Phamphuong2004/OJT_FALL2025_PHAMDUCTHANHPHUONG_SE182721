@@ -2,6 +2,16 @@ import React from "react";
 import Payment from "../Payment/Payment";
 
 export default function Checkout() {
-  // Render full Payment page at /checkout
-  return <Payment />;
+  console.log("Checkout component rendered");
+
+  try {
+    return <Payment />;
+  } catch (error) {
+    console.error("Error rendering Payment:", error);
+    return (
+      <div style={{ padding: "20px", color: "red" }}>
+        Error: {error.message}
+      </div>
+    );
+  }
 }

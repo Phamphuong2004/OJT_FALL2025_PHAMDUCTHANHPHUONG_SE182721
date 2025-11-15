@@ -11,6 +11,7 @@ import Navbar from "../Components/Navbar";
 import { CartProvider, useCart } from "../Cart/CartProvider";
 import ToastProvider from "../Components/Toast";
 import { getUserRole, isAuthenticated } from "../Auth/useAuth";
+import Checkout from "../Components/Checkout"; // Import trực tiếp không dùng lazy
 
 // Small, reusable loading UI
 const Loading = ({ message = "Loading..." }) => (
@@ -50,10 +51,7 @@ const Contact = lazyPage(
   () => import("../Pages/Contact"),
   "Contact (placeholder)"
 );
-const Checkout = lazyPage(
-  () => import("../Components/Checkout"),
-  "Checkout (placeholder)"
-);
+// Checkout đã import trực tiếp ở trên, không cần lazy
 const OrderConfirmation = lazyPage(
   () => import("../Order/OrderConfirmation"),
   "OrderConfirmation (placeholder)"
@@ -68,6 +66,11 @@ const GameDetails = lazyPage(
 const Payment = lazyPage(
   () => import("../Payment/Payment"),
   "Payment (placeholder)"
+);
+
+const PaymentResult = lazyPage(
+  () => import("../Payment/PaymentResult"),
+  "PaymentResult (placeholder)"
 );
 const PromotionList = lazyPage(
   () => import("../Discount/PromotionList"),
@@ -115,6 +118,35 @@ const AdminReviewDashboard = lazyPage(
   () => import("../Admin/AdminReviewDashboard"),
   "Admin Review Dashboard (placeholder)"
 );
+const AddressesPage = lazyPage(
+  () => import("../Pages/Addresses"),
+  "Addresses (placeholder)"
+);
+
+const AdminSystemManagement = lazyPage(
+  () => import("../Admin/AdminSystemManagement"),
+  "Admin System Management (placeholder)"
+);
+
+const AdminOrderManagement = lazyPage(
+  () => import("../Admin/AdminOrderManagement"),
+  "Admin Order Management (placeholder)"
+);
+
+const AdminLayout = lazyPage(
+  () => import("../Admin/AdminLayout"),
+  "Admin Layout (placeholder)"
+);
+
+const UserProfile = lazyPage(
+  () => import("../Profile/UserProfile"),
+  "User Profile (placeholder)"
+);
+
+const MyOrders = lazyPage(
+  () => import("../Pages/MyOrders"),
+  "My Orders (placeholder)"
+);
 
 // Layout component that keeps Navbar persistent and provides search/navigation behavior
 function Layout() {
@@ -152,15 +184,7 @@ export default function AppRoutes() {
               <Route path="categories" element={<Categories />} />
               <Route path="cart" element={<Cart />} />
               <Route path="payment" element={<Payment />} />
-              {/* Admin-only route: wrap with RequireRole */}
-              <Route
-                path="admin/add-game"
-                element={
-                  <RequireRole role="Admin">
-                    <AddGame />
-                  </RequireRole>
-                }
-              />
+              <Route path="payment/result" element={<PaymentResult />} />
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               <Route path="forgot-password" element={<ForgotPassword />} />
@@ -171,6 +195,9 @@ export default function AppRoutes() {
               <Route path="promotions" element={<PromotionList />} />
               <Route path="promotions/:slug" element={<PromotionDetail />} />
               <Route path="account" element={<Account />} />
+              <Route path="addresses" element={<AddressesPage />} />
+              <Route path="profile" element={<UserProfile />} />
+              <Route path="orders" element={<MyOrders />} />
 
               {/* Customer-only routes - Admin không truy cập được */}
               <Route
@@ -189,52 +216,29 @@ export default function AppRoutes() {
                   </RequireCustomer>
                 }
               />
-
-              {/* Admin promotion routes */}
-              <Route
-                path="admin/promotion"
-                element={
-                  <RequireRole role="Admin">
-                    <AdminPromotionDashboard />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="admin/promotion/create"
-                element={
-                  <RequireRole role="Admin">
-                    <CreatePromotion />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="admin/promotion/:id/edit"
-                element={
-                  <RequireRole role="Admin">
-                    <EditPromotion />
-                  </RequireRole>
-                }
-              />
-              {/* Admin users route */}
-              <Route
-                path="admin/users"
-                element={
-                  <RequireRole role="Admin">
-                    <UsersList />
-                  </RequireRole>
-                }
-              />
-              {/* Admin reviews route */}
-              <Route
-                path="admin/reviews"
-                element={
-                  <RequireRole role="Admin">
-                    <AdminReviewDashboard />
-                  </RequireRole>
-                }
-              />
             </Route>
 
+            {/* Admin routes with AdminLayout (no Navbar) */}
+            <Route
+              path="admin"
+              element={
+                <RequireRole role="Admin">
+                  <AdminLayout />
+                </RequireRole>
+              }
+            >
+              <Route index element={<Navigate to="/admin/system" replace />} />
+              <Route path="system" element={<AdminSystemManagement />} />
+              <Route path="orders" element={<AdminOrderManagement />} />
+              <Route path="add-game" element={<AddGame />} />
+              <Route path="reviews" element={<AdminReviewDashboard />} />
+              <Route path="promotion" element={<AdminPromotionDashboard />} />
+              <Route path="promotion/create" element={<CreatePromotion />} />
+              <Route path="promotion/:id/edit" element={<EditPromotion />} />
+              <Route path="users" element={<UsersList />} />
+            </Route>
+
+            {/* Routes outside Layout (no Navbar) */}
             <Route path="old-home" element={<Navigate to="/" replace />} />
             <Route
               path="*"

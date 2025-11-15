@@ -46,8 +46,19 @@ export async function createOrder(payload) {
 }
 
 export async function getMyOrders() {
-  const res = await api.get("/orders");
-  return res.data;
+  try {
+    console.log("[OrderAPI] getMyOrders called");
+    const token = localStorage.getItem("token");
+    console.log("[OrderAPI] Token exists:", !!token);
+
+    const res = await api.get("/orders/myorders");
+    console.log("[OrderAPI] Orders received:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("[OrderAPI] Error getting orders:", error);
+    console.error("[OrderAPI] Error response:", error.response);
+    throw error;
+  }
 }
 
 export async function getOrder(id) {
@@ -55,4 +66,47 @@ export async function getOrder(id) {
   return res.data;
 }
 
-export default { createOrder, getMyOrders, getOrder };
+// ===== ADMIN APIs =====
+
+export async function getAllOrdersAdmin(
+  status = null,
+  page = 1,
+  pageSize = 20
+) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  params.set("page", page);
+  params.set("pageSize", pageSize);
+
+  const res = await api.get(`/orders/admin/all?${params.toString()}`);
+  return res.data;
+}
+
+export async function getOrderAdmin(id) {
+  const res = await api.get(`/orders/admin/${id}`);
+  return res.data;
+}
+
+export async function updateOrderStatus(id, status, paymentStatus = null) {
+  const payload = { status };
+  if (paymentStatus) payload.paymentStatus = paymentStatus;
+
+  const res = await api.put(`/orders/admin/${id}/status`, payload);
+  return res.data;
+}
+
+export async function getOrderStatistics() {
+  const res = await api.get("/orders/admin/statistics");
+  return res.data;
+}
+
+export default {
+  createOrder,
+  getMyOrders,
+  getOrder,
+  // Admin APIs
+  getAllOrdersAdmin,
+  getOrderAdmin,
+  updateOrderStatus,
+  getOrderStatistics,
+};

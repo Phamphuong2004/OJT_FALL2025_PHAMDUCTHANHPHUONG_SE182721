@@ -155,17 +155,28 @@ namespace GameStoreMini.Controllers
                     ShippingAddress = dto?.ShippingAddress ?? string.Empty,
                     ShippingPhone = dto?.ShippingPhone ?? string.Empty,
                     Status = "Pending",
-                    PaymentStatus = "Pending"
+                    PaymentStatus = "Pending",
+                    // Generate order number IMMEDIATELY
+                    OrderNumber = $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..6]}"
                 };
                 decimal total = 0m;
 
                 foreach (var ci in cart.Items)
                 {
+                    // Lấy giá hiện tại từ Game, KHÔNG từ CartItem.UnitPrice
+                    // vì CartItem.UnitPrice có thể là 0 nếu không được set khi add to cart
+                    var unitPrice = ci.Game?.Price ?? ci.UnitPrice;
+                    
+                    if (unitPrice == 0)
+                    {
+                        Console.WriteLine($"[Orders] WARNING: Game {ci.GameId} has price = 0!");
+                    }
+                    
                     var oi = new OrderItem
                     {
                         GameId = ci.GameId,
                         Quantity = ci.Quantity,
-                        UnitPrice = ci.UnitPrice // use snapshot price
+                        UnitPrice = unitPrice // use current game price as snapshot
                     };
                     order.Items.Add(oi);
                     total += oi.UnitPrice * oi.Quantity;
@@ -180,9 +191,6 @@ namespace GameStoreMini.Controllers
 
                 // clear cart items
                 _db.CartItems.RemoveRange(cart.Items);
-
-                // generate a human-friendly order number
-                order.OrderNumber = $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..6]}";
 
                 await _db.SaveChangesAsync();
                 await tx.CommitAsync();
@@ -308,7 +316,9 @@ namespace GameStoreMini.Controllers
                     Total = computedTotal,
                     PaymentStatus = "Pending",
                     ShippingAddress = ship?.Address ?? string.Empty,
-                    ShippingPhone = ship?.Phone ?? string.Empty
+                    ShippingPhone = ship?.Phone ?? string.Empty,
+                    // Generate order number IMMEDIATELY
+                    OrderNumber = $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..6]}"
                 };
 
                 // store additional structured shipping fields if present
@@ -358,11 +368,16 @@ namespace GameStoreMini.Controllers
             if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
             if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
 
+            Console.WriteLine($"[Orders] GetMyOrders called for userId: {userId}");
+
             var orders = await _db.Orders
                 .Where(o => o.UserId == userId)
-                .Include(o => o.Items) // adjust include names
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Game) // Include game information
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
+
+            Console.WriteLine($"[Orders] Found {orders.Count} orders for user {userId}");
 
             return Ok(orders);
         }
@@ -378,6 +393,7 @@ namespace GameStoreMini.Controllers
 
             var order = await _db.Orders
                 .Include(o => o.Items)
+                    .ThenInclude(i => i.Game)
                 .FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
 
             if (order == null) return NotFound();
@@ -396,10 +412,159 @@ namespace GameStoreMini.Controllers
 
             var order = await _db.Orders
                 .Include(o => o.Items)
+                    .ThenInclude(i => i.Game)
                 .FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderNumber && o.CustomerEmail == dto.Email);
 
             if (order == null) return NotFound();
             return Ok(order);
+        }
+
+        // Admin endpoint to recalculate order totals
+        [Authorize(Roles = "Admin")]
+        [HttpPost("admin/recalculate-totals")]
+        public async Task<IActionResult> RecalculateOrderTotals()
+        {
+            var ordersWithZeroTotal = await _db.Orders
+                .Include(o => o.Items)
+                .Where(o => o.Total == 0)
+                .ToListAsync();
+
+            int fixedCount = 0;
+            foreach (var order in ordersWithZeroTotal)
+            {
+                var calculatedTotal = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+                if (calculatedTotal > 0)
+                {
+                    order.Total = calculatedTotal;
+                    fixedCount++;
+                }
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { 
+                message = $"Fixed {fixedCount} orders with zero total", 
+                totalChecked = ordersWithZeroTotal.Count,
+                fixedCount = fixedCount
+            });
+        }
+
+        // ===== ADMIN ENDPOINTS =====
+
+        // GET /api/orders/admin/all - Get all orders (Admin only)
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/all")]
+        public async Task<IActionResult> GetAllOrdersAdmin([FromQuery] string? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            Console.WriteLine($"[Orders] Admin GetAllOrders called - Status: {status}, Page: {page}");
+
+            var query = _db.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Game)
+                .AsQueryable();
+
+            // Filter by status if provided
+            if (!string.IsNullOrWhiteSpace(status) && status.ToLower() != "all")
+            {
+                query = query.Where(o => o.Status.ToLower() == status.ToLower());
+            }
+
+            var totalOrders = await query.CountAsync();
+
+            var orders = await query
+                .OrderByDescending(o => o.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            Console.WriteLine($"[Orders] Found {orders.Count} orders (total: {totalOrders})");
+
+            return Ok(new 
+            { 
+                data = orders, 
+                total = totalOrders,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(totalOrders / (double)pageSize)
+            });
+        }
+
+        // GET /api/orders/admin/{id} - Get single order details (Admin only)
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/{id:int}")]
+        public async Task<IActionResult> GetOrderAdmin(int id)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Game)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null) return NotFound();
+            return Ok(order);
+        }
+
+        // PUT /api/orders/admin/{id}/status - Update order status (Admin only)
+        [Authorize(Roles = "Admin")]
+        [HttpPut("admin/{id:int}/status")]
+        public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusDto dto)
+        {
+            Console.WriteLine($"[Orders] Admin updating order {id} status to: {dto.Status}");
+
+            var order = await _db.Orders.FindAsync(id);
+            if (order == null) return NotFound();
+
+            // Validate status
+            var validStatuses = new[] { "Pending", "Processing", "Shipping", "Completed", "Cancelled", "Refund" };
+            if (!validStatuses.Contains(dto.Status, StringComparer.OrdinalIgnoreCase))
+            {
+                return BadRequest($"Invalid status. Valid values: {string.Join(", ", validStatuses)}");
+            }
+
+            order.Status = dto.Status;
+
+            // Optionally update payment status
+            if (!string.IsNullOrWhiteSpace(dto.PaymentStatus))
+            {
+                order.PaymentStatus = dto.PaymentStatus;
+            }
+
+            await _db.SaveChangesAsync();
+
+            Console.WriteLine($"[Orders] Order {id} status updated successfully");
+            return Ok(new { message = "Order status updated", order });
+        }
+
+        // GET /api/orders/admin/statistics - Get order statistics (Admin only)
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/statistics")]
+        public async Task<IActionResult> GetOrderStatistics()
+        {
+            var totalOrders = await _db.Orders.CountAsync();
+            var pendingOrders = await _db.Orders.CountAsync(o => o.Status == "Pending");
+            var processingOrders = await _db.Orders.CountAsync(o => o.Status == "Processing");
+            var shippingOrders = await _db.Orders.CountAsync(o => o.Status == "Shipping");
+            var completedOrders = await _db.Orders.CountAsync(o => o.Status == "Completed");
+            var cancelledOrders = await _db.Orders.CountAsync(o => o.Status == "Cancelled");
+            var totalRevenue = await _db.Orders
+                .Where(o => o.Status == "Completed")
+                .SumAsync(o => o.Total);
+
+            return Ok(new
+            {
+                totalOrders,
+                pendingOrders,
+                processingOrders,
+                shippingOrders,
+                completedOrders,
+                cancelledOrders,
+                totalRevenue
+            });
+        }
+
+        public class UpdateOrderStatusDto
+        {
+            public string Status { get; set; } = "";
+            public string? PaymentStatus { get; set; }
         }
     }
 }
