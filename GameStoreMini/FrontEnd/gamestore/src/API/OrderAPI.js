@@ -100,6 +100,16 @@ export async function getOrderStatistics() {
   return res.data;
 }
 
+export async function trackOrder({ orderCode, email }) {
+  // Đúng với backend: OrderNumber và Email
+  const res = await api.post("/orders/track", {
+    OrderNumber: orderCode,
+    Email: email,
+  });
+  // Trả về dữ liệu đơn hàng hoặc lỗi
+  return res.data;
+}
+
 export default {
   createOrder,
   getMyOrders,
@@ -109,4 +119,5 @@ export default {
   getOrderAdmin,
   updateOrderStatus,
   getOrderStatistics,
+  trackOrder,
 };

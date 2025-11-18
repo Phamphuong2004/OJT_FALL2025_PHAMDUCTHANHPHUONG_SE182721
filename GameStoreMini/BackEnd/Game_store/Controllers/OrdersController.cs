@@ -385,19 +385,35 @@ namespace GameStoreMini.Controllers
         // GET /api/orders/{id} -> get single order for customer
         [Authorize]
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetOrder(int id)
+        public async Task<IActionResult> GetOrderById(int id)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
-            if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
+            int? userId = null;
+            if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var parsedUserId)) userId = parsedUserId;
 
             var order = await _db.Orders
                 .Include(o => o.Items)
                     .ThenInclude(i => i.Game)
-                .FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
+                .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (order == null) return NotFound();
-            return Ok(order);
+            if (order == null)
+                return NotFound(new { success = false, message = "Không tìm thấy đơn hàng." });
+
+            if (order.UserId != userId && !User.IsInRole("Admin"))
+                return Forbid();
+
+            var statusLabel = order.Status switch
+            {
+                "Pending" => "Đang chờ xử lý",
+                "Processing" => "Đang xử lý",
+                "Shipping" => "Đang giao",
+                "Completed" => "Hoàn thành",
+                "Cancelled" => "Đã hủy",
+                "Refund" => "Hoàn tiền",
+                _ => order.Status
+            };
+
+            return Ok(new { success = true, order, statusLabel });
         }
 
         // POST /api/orders/track  -> guest tracking by orderNumber + email

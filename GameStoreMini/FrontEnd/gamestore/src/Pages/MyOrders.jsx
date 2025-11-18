@@ -30,13 +30,31 @@ const MyOrders = () => {
       const data = await OrderAPI.getMyOrders();
       console.log("[MyOrders] Orders received:", data);
       console.log("[MyOrders] Orders count:", data?.length || 0);
+      // normalize statuses and attach a `normalizedStatus` key so frontend
+      // can filter consistently even if backend uses slightly different labels
+      const normalizeStatus = (s) => {
+        if (!s) return "";
+        const st = s.toString().toLowerCase();
+        // Map backend variants to our canonical keys used by tabs
+        if (st === "confirmed") return "processing"; // treat Confirmed as Processing
+        if (st === "processing") return "processing";
+        if (st === "pending") return "pending";
+        if (st === "shipping") return "shipping";
+        if (st === "completed") return "completed";
+        if (st === "cancelled" || st === "canceled") return "cancelled";
+        if (st === "refund" || st === "refunded") return "refund";
+        return st; // fallback to raw lowercased status
+      };
 
-      let filteredOrders = data || [];
+      let normalized = (data || []).map((o) => ({
+        ...o,
+        normalizedStatus: normalizeStatus(o.status || o.Status),
+      }));
 
-      // Filter based on active tab
+      let filteredOrders = normalized;
       if (activeTab !== "all") {
-        filteredOrders = filteredOrders.filter(
-          (order) => order.status?.toLowerCase() === activeTab
+        filteredOrders = normalized.filter(
+          (order) => order.normalizedStatus === activeTab
         );
       }
 
@@ -174,9 +192,13 @@ const MyOrders = () => {
                     <div className="order-status">
                       <span
                         className="status-badge"
-                        style={{ color: getStatusColor(order.status) }}
+                        style={{
+                          color: getStatusColor(
+                            order.normalizedStatus || order.status
+                          ),
+                        }}
                       >
-                        {getStatusText(order.status)}
+                        {getStatusText(order.normalizedStatus || order.status)}
                       </span>
                     </div>
                   </div>
@@ -259,7 +281,7 @@ const MyOrders = () => {
                       </span>
                     </div>
                     <div className="order-actions">
-                      {order.status === "completed" && (
+                      {order.normalizedStatus === "completed" && (
                         <>
                           <button className="btn-secondary">Mua Lại</button>
                           <button className="btn-secondary">
@@ -267,18 +289,15 @@ const MyOrders = () => {
                           </button>
                         </>
                       )}
-                      {order.status === "pending" && (
+                      {order.normalizedStatus === "pending" && (
                         <button className="btn-danger">Hủy Đơn Hàng</button>
                       )}
-                      {order.status === "shipping" && (
+                      {order.normalizedStatus === "shipping" && (
                         <button className="btn-success">
                           Đã Nhận Được Hàng
                         </button>
                       )}
-                      <Link
-                        to={`/order/${order.id || order.orderId}`}
-                        className="btn-primary"
-                      >
+                      <Link to={`/order/${order.id}`} className="btn-primary">
                         Xem Chi Tiết
                       </Link>
                     </div>

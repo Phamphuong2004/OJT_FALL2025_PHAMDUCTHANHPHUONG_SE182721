@@ -9,6 +9,7 @@ import {
 import { logout as apiLogout, refreshToken } from "../API/UserAPI";
 import "../Decorate/Navbar.css";
 import { useCart } from "../Cart/CartProvider";
+import OrderTrackingButton from "../Order/OrderTrackingButton";
 
 export default function Navbar({ onSearch }) {
   const { count } = useCart(); // get count from context
@@ -204,6 +205,47 @@ export default function Navbar({ onSearch }) {
                 <li>
                   <NavLink to="/about">Về chúng tôi</NavLink>
                 </li>
+                {/* Nút theo dõi đơn hàng:
+                   - Guest (chưa đăng nhập): mở modal tra cứu (OrderTrackingButton)
+                   - Customer (đã đăng nhập, không phải Admin): dẫn thẳng tới trang 'Đơn hàng của tôi' (/orders)
+                */}
+                {getUserRole() !== "Admin" &&
+                  (auth ? (
+                    <li>
+                      <Link
+                        to="/orders"
+                        className="order-track-link"
+                        title="Xem đơn hàng của tôi"
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <path
+                            d="M3 6h18"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M3 6l1.5 14h15L21 6"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span className="order-track-label">Đơn hàng</span>
+                      </Link>
+                    </li>
+                  ) : (
+                    <li>
+                      <OrderTrackingButton />
+                    </li>
+                  ))}
                 <li className="mobile-only">
                   <NavLink to="/contact">Liên hệ</NavLink>
                 </li>
@@ -310,6 +352,8 @@ export default function Navbar({ onSearch }) {
               {count > 0 && <span className="gs-cart-count">{count}</span>}
             </Link>
           )}
+
+          {/* Nút theo dõi đơn hàng - CHỈ cho Customer */}
 
           {auth ? (
             <div

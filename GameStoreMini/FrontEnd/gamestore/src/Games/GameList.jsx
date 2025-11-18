@@ -40,6 +40,11 @@ export default function GamesList() {
     }
   };
 
+  const onAddToCart = async (game) => {
+    // giả lập thêm vào giỏ hàng
+    toast.success(`Đã thêm ${game.title} vào giỏ hàng!`);
+  };
+
   if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
 
   return (
@@ -57,6 +62,9 @@ export default function GamesList() {
               </button>
               <button onClick={() => onDelete(g.id)} style={{ marginLeft: 8 }}>
                 Xóa
+              </button>
+              <button onClick={() => onAddToCart(g)} style={{ marginLeft: 8 }}>
+                Thêm vào giỏ
               </button>
             </div>
           </li>

@@ -56,6 +56,10 @@ const OrderConfirmation = lazyPage(
   () => import("../Order/OrderConfirmation"),
   "OrderConfirmation (placeholder)"
 );
+const OrderDetails = lazyPage(
+  () => import("../Order/OrderDetails"),
+  "Order Details (placeholder)"
+);
 
 // add GameDetails lazy import
 const GameDetails = lazyPage(
@@ -191,7 +195,7 @@ export default function AppRoutes() {
               <Route path="about" element={<About />} />
               <Route path="contact" element={<Contact />} />
               <Route path="checkout" element={<Checkout />} />
-              <Route path="order/:id" element={<OrderConfirmation />} />
+              <Route path="order/:id" element={<OrderDetails />} />
               <Route path="promotions" element={<PromotionList />} />
               <Route path="promotions/:slug" element={<PromotionDetail />} />
               <Route path="account" element={<Account />} />
@@ -213,6 +217,15 @@ export default function AppRoutes() {
                 element={
                   <RequireCustomer>
                     <ViewHistory />
+                  </RequireCustomer>
+                }
+              />
+
+              <Route
+                path="orders/track"
+                element={
+                  <RequireCustomer>
+                    <OrderTracking />
                   </RequireCustomer>
                 }
               />

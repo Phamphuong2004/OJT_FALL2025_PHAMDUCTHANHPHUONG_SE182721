@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import wishlistAPI from "../API/WishlistAPI";
 import { Heart } from "lucide-react";
 import { getUserRole } from "../Auth/useAuth";
+import { useToast } from "../Components/Toast";
 
 export default function WishlistButton({ gameId, onToggle }) {
   const [inWishlist, setInWishlist] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRole] = useState(null);
+  const { success, error: toastError } = useToast();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -48,14 +50,16 @@ export default function WishlistButton({ gameId, onToggle }) {
       if (inWishlist) {
         await wishlistAPI.removeFromWishlist(gameId);
         setInWishlist(false);
+        success("Đã xóa khỏi danh sách yêu thích");
       } else {
         await wishlistAPI.addToWishlist(gameId);
         setInWishlist(true);
+        success("Đã thêm vào danh sách yêu thích");
       }
       if (onToggle) onToggle();
-    } catch (error) {
-      console.error("Error toggling wishlist:", error);
-      alert(error.response?.data?.message || "Có lỗi xảy ra");
+    } catch (err) {
+      console.error("Error toggling wishlist:", err);
+      toastError(err.response?.data?.message || "Có lỗi xảy ra");
     } finally {
       setLoading(false);
     }

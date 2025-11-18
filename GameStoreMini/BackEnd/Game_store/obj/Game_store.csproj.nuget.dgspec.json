@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "e:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj": {}
+    "E:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj": {}
   },
   "projects": {
-    "e:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj": {
+    "E:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "e:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj",
+        "projectUniqueName": "E:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj",
         "projectName": "Game_store",
-        "projectPath": "e:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj",
+        "projectPath": "E:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\Game_store.csproj",
         "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
-        "outputPath": "e:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\obj\\",
+        "outputPath": "E:\\OJT_FALL2025\\GameStoreMini\\BackEnd\\Game_store\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

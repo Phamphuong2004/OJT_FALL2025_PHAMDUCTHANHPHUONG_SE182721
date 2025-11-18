@@ -90,6 +90,65 @@
   background-color: #f3f4f6;
 }
 
+/* Order / tracking link for authenticated customers */
+.order-track-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  /* Softer indigo -> violet gradient that pairs with the navbar */
+  background: linear-gradient(
+    90deg,
+    rgba(37, 99, 235, 0.95) 0%,
+    rgba(124, 58, 237, 0.95) 100%
+  );
+  color: #fff;
+  border-radius: 14px;
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1),
+    box-shadow 0.18s ease, opacity 0.18s ease;
+  box-shadow: 0 8px 22px rgba(67, 56, 202, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.order-track-link svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+  opacity: 0.98;
+  flex-shrink: 0;
+}
+
+.order-track-link .order-track-label {
+  display: inline-block;
+  line-height: 1;
+}
+
+.order-track-link:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 48px rgba(67, 56, 202, 0.18);
+  opacity: 1;
+}
+
+.order-track-link:focus {
+  outline: 3px solid rgba(124, 58, 237, 0.16);
+  outline-offset: 2px;
+}
+
+/* compact variant for small screens */
+@media (max-width: 720px) {
+  .order-track-link {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+  .order-track-link .order-track-label {
+    display: none;
+  }
+}
+
 .gs-actions {
   display: flex;
   align-items: center;
@@ -128,49 +187,49 @@
   color: #9ca3af;
 }
 
-.search-btn {
-  background: transparent;
-  border: 0;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.25rem;
-}
-
-.gs-cart {
-  position: relative;
+.order-track-link {
   display: inline-flex;
   align-items: center;
-  color: #6b7280;
-  text-decoration: none;
-  padding: 0.375rem;
-  border-radius: 6px;
-  transition: background-color 0.2s ease;
-  height: 36px;
-  width: 36px;
-  justify-content: center;
-}
-
-.gs-cart:hover {
-  background: #f3f4f6;
-}
-
-.gs-cart svg {
-  color: #3b82f6;
-}
-
-.gs-cart-count {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: #ef4444;
-  color: white;
-  font-size: 0.75rem;
+  gap: 8px;
+  /* Updated color: subtle indigo -> violet gradient to match brand */
+  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+  color: #fff;
+  border-radius: 20px;
+  padding: 8px 14px;
   font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1),
+    box-shadow 0.18s ease, opacity 0.18s ease;
+  box-shadow: 0 6px 22px rgba(67, 56, 202, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.order-track-link svg {
+  color: #fff;
+  opacity: 0.98;
+}
+
+.order-track-link .order-track-label {
+  display: inline-block;
   line-height: 1;
-  padding: 0.125rem 0.375rem;
-  border-radius: 9999px;
-  min-width: 1.25rem;
-  text-align: center;
+}
+
+.order-track-link:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 40px rgba(67, 56, 202, 0.18);
+  opacity: 0.98;
+}
+
+/* compact variant for small screens */
+@media (max-width: 720px) {
+  .order-track-link {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+  .order-track-link .order-track-label {
+    display: none;
+  }
 }
 
 .gs-avatar {
