@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getOrder } from "../API/OrderAPI";
 import { useToast } from "../Components/Toast";
-import "./OrderDetails.css";
+import "../Decorate/OrderDetails.css";
 
 export default function OrderDetails() {
   const { id } = useParams();
