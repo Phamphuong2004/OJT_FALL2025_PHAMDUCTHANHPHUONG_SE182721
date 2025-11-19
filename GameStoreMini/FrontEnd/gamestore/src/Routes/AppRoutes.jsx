@@ -46,6 +46,10 @@ const AddGame = lazyPage(
   () => import("../Games/AddGame"),
   "AddGame (placeholder)"
 );
+const GamesList = lazyPage(
+  () => import("../Games/GameList"),
+  "GamesList (placeholder)"
+);
 const About = lazyPage(() => import("../Pages/About"), "About (placeholder)");
 const Contact = lazyPage(
   () => import("../Pages/Contact"),
@@ -243,6 +247,7 @@ export default function AppRoutes() {
               <Route index element={<Navigate to="/admin/system" replace />} />
               <Route path="system" element={<AdminSystemManagement />} />
               <Route path="orders" element={<AdminOrderManagement />} />
+              <Route path="games" element={<GamesList />} />
               <Route path="add-game" element={<AddGame />} />
               <Route path="reviews" element={<AdminReviewDashboard />} />
               <Route path="promotion" element={<AdminPromotionDashboard />} />

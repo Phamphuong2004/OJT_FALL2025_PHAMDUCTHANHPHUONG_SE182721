@@ -487,8 +487,29 @@ namespace GameStoreMini.Controllers
 
             var totalOrders = await query.CountAsync();
 
-            var orders = await query
+            // Project into a safe DTO for admin list to include basic user info
+            var projected = query
                 .OrderByDescending(o => o.CreatedAt)
+                .Select(o => new {
+                    o.Id,
+                    o.OrderNumber,
+                    o.Total,
+                    o.CreatedAt,
+                    o.Status,
+                    o.PaymentStatus,
+                    Items = o.Items.Select(i => new { i.GameId, i.Quantity, i.UnitPrice, GameTitle = i.Game != null ? i.Game.Title : null }),
+                    User = o.User != null ? new { Id = o.User.Id, UserName = o.User.UserName, FullName = o.User.FullName, Email = o.User.Email } : null,
+                    CustomerName = o.CustomerName,
+                    CustomerEmail = o.CustomerEmail,
+                    ShippingAddress = o.ShippingAddress,
+                    ShippingPhone = o.ShippingPhone,
+                    // Compute a display name prioritizing explicit customer name, then linked user full name, then username, then email
+                    CustomerFullName = o.CustomerName ?? (o.User != null ? (o.User.FullName ?? o.User.UserName) : null) ?? o.CustomerEmail ?? "Guest",
+                    // Normalized email for display (prefer customer email, then linked user email)
+                    CustomerEmailNormalized = o.CustomerEmail ?? (o.User != null ? o.User.Email : null)
+                });
+
+            var orders = await projected
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -511,9 +532,24 @@ namespace GameStoreMini.Controllers
         public async Task<IActionResult> GetOrderAdmin(int id)
         {
             var order = await _db.Orders
-                .Include(o => o.Items)
-                    .ThenInclude(i => i.Game)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .Where(o => o.Id == id)
+                .Select(o => new {
+                    o.Id,
+                    o.OrderNumber,
+                    o.Total,
+                    o.CreatedAt,
+                    o.Status,
+                    o.PaymentStatus,
+                    Items = o.Items.Select(i => new { i.GameId, i.Quantity, i.UnitPrice, GameTitle = i.Game != null ? i.Game.Title : null }),
+                    User = o.User != null ? new { Id = o.User.Id, UserName = o.User.UserName, FullName = o.User.FullName, Email = o.User.Email } : null,
+                    CustomerName = o.CustomerName,
+                    CustomerEmail = o.CustomerEmail,
+                    ShippingAddress = o.ShippingAddress,
+                    ShippingPhone = o.ShippingPhone,
+                    CustomerFullName = o.CustomerName ?? (o.User != null ? (o.User.FullName ?? o.User.UserName) : null) ?? o.CustomerEmail ?? "Guest",
+                    CustomerEmailNormalized = o.CustomerEmail ?? (o.User != null ? o.User.Email : null)
+                })
+                .FirstOrDefaultAsync();
 
             if (order == null) return NotFound();
             return Ok(order);

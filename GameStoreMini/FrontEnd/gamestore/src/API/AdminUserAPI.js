@@ -46,6 +46,19 @@ const AdminUserAPI = {
     });
     return res.data;
   },
+  updateUser: async (id, payload) => {
+    const res = await axios.put(`${API_BASE}/${id}`, payload, {
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+    });
+    return res.data;
+  },
+
+  populateFullNames: async () => {
+    const res = await axios.post(`${API_BASE}/populate-fullnames`, null, {
+      headers: authHeaders(),
+    });
+    return res.data;
+  },
 };
 
 export default AdminUserAPI;

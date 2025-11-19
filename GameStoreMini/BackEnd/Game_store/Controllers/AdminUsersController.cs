@@ -19,7 +19,7 @@ public class AdminUsersController : ControllerBase
             .OrderBy(u => u.Id)
             .Skip((page-1)*pageSize)
             .Take(pageSize)
-            .Select(u => new { u.Id, u.Email, u.Role, u.EmailConfirmed, u.LockoutEnd })
+            .Select(u => new { u.Id, u.Email, u.UserName, u.FullName, u.Role, u.EmailConfirmed, u.LockoutEnd })
             .ToList();
         return Ok(users);
     }
@@ -30,7 +30,7 @@ public class AdminUsersController : ControllerBase
         var user = _db.Users
             .AsNoTracking()
             .Where(u => u.Id == id)
-            .Select(u => new { u.Id, u.Email, u.Role, u.EmailConfirmed, u.LockoutEnd })
+            .Select(u => new { u.Id, u.Email, u.UserName, u.FullName, u.Role, u.EmailConfirmed, u.LockoutEnd })
             .FirstOrDefault();
         if (user == null) return NotFound();
         return Ok(user);
@@ -69,6 +69,48 @@ public class AdminUsersController : ControllerBase
         _db.SaveChanges();
         return NoContent();
     }
+
+    [HttpPut("{id}")]
+    public IActionResult UpdateUser(int id, [FromBody] UpdateUserDto dto)
+    {
+        if (dto == null) return BadRequest();
+        var user = _db.Users.Find(id);
+        if (user == null) return NotFound();
+        // Allow updating only FullName for now
+        if (dto.FullName != null) user.FullName = dto.FullName;
+        _db.SaveChanges();
+        return NoContent();
+    }
+
+    [HttpPost("populate-fullnames")]
+    public IActionResult PopulateFullNames()
+    {
+        // One-time helper: populate FullName for users where it's missing by deriving
+        // from UserName or email local-part. Safe to call multiple times.
+        var users = _db.Users.Where(u => string.IsNullOrWhiteSpace(u.FullName)).ToList();
+        int updated = 0;
+        foreach (var u in users)
+        {
+            string? candidate = null;
+            if (!string.IsNullOrWhiteSpace(u.UserName)) candidate = u.UserName;
+            else if (!string.IsNullOrWhiteSpace(u.Email)) candidate = u.Email.Split('@')[0];
+            if (string.IsNullOrWhiteSpace(candidate)) continue;
+            // simple cleanup: replace separators with space and capitalize
+            var cleaned = System.Text.RegularExpressions.Regex.Replace(candidate, "[_\\.\\-]+", " ");
+            var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Length > 0 ? char.ToUpper(p[0]) + p.Substring(1).ToLower() : p)
+                .ToArray();
+            var full = string.Join(' ', parts);
+            if (!string.IsNullOrWhiteSpace(full))
+            {
+                u.FullName = full;
+                updated++;
+            }
+        }
+        _db.SaveChanges();
+        return Ok(new { updated });
+    }
 }
 
 public class UpdateRoleDto { public string Role { get; set; } }
+public class UpdateUserDto { public string? FullName { get; set; } }

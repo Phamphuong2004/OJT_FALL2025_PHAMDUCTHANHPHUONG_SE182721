@@ -8,6 +8,8 @@ using GameStoreMini.Dtos;
 using GameStoreMini.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Generic;
 using System.IO;
 using System;
 using System.Linq;
@@ -21,7 +23,12 @@ namespace GameStoreMini.Controllers
 	{
 		private readonly AppDbContext _db;
 		private readonly IWebHostEnvironment _env;
-		public AdminPromotionController(AppDbContext db, IWebHostEnvironment env) => (_db, _env) = (db, env);
+		private readonly IMemoryCache _cache;
+		// Danh sách các key cache đã dùng để invalidate khi có thay đổi
+		private const string CacheKeysListKey = "admin_promotions_keys";
+
+		// Inject IMemoryCache để sử dụng cache in-memory
+		public AdminPromotionController(AppDbContext db, IWebHostEnvironment env, IMemoryCache cache) => (_db, _env, _cache) = (db, env, cache);
 
 		// GET: api/admin/promotions
 		[HttpGet]
@@ -37,6 +44,14 @@ namespace GameStoreMini.Controllers
 				query = query.Where(p => EF.Functions.ILike(p.Title, pattern) || EF.Functions.ILike(p.Content, pattern));
 			}
 
+			// Tạo cache key dựa trên page/pageSize và query để cache từng trang riêng
+			var cacheKey = $"admin_promotions_page:{page}_size:{pageSize}_q:{q ?? ""}";
+			if (_cache.TryGetValue(cacheKey, out object? cached))
+			{
+				// Trả về kết quả từ cache nếu có
+				return Ok(cached);
+			}
+
 			var total = await query.CountAsync();
 			var items = await query
 				.Include(p => p.PromotionGames)
@@ -46,7 +61,24 @@ namespace GameStoreMini.Controllers
 				.Take(pageSize)
 				.ToListAsync();
 
-			return Ok(new { data = items, total, page, pageSize });
+			var result = new { data = items, total, page, pageSize };
+
+			// Lưu key vào danh sách để dễ invalidate khi có thay đổi dữ liệu
+			var keys = _cache.Get<List<string>>(CacheKeysListKey) ?? new List<string>();
+			if (!keys.Contains(cacheKey))
+			{
+				keys.Add(cacheKey);
+				_cache.Set(CacheKeysListKey, keys, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) });
+			}
+
+			// Cache kết quả: sliding 5 phút, tối đa 15 phút
+			var cacheEntryOptions = new MemoryCacheEntryOptions()
+				.SetSlidingExpiration(TimeSpan.FromMinutes(5))
+				.SetAbsoluteExpiration(TimeSpan.FromMinutes(15));
+
+			_cache.Set(cacheKey, result, cacheEntryOptions);
+
+			return Ok(result);
 		}
 
 		// GET: api/admin/promotions/{id}
@@ -109,6 +141,9 @@ namespace GameStoreMini.Controllers
 				await _db.SaveChangesAsync();
 			}
 
+			// Khi có thay đổi dữ liệu promotions, invalidate các cache liên quan
+			InvalidatePromotionCaches();
+
 			return CreatedAtAction(nameof(Get), new { id = p.Id }, p);
 		}
 
@@ -153,6 +188,9 @@ namespace GameStoreMini.Controllers
 			}
 
 			await _db.SaveChangesAsync();
+
+			// Invalidate cache sau khi update
+			InvalidatePromotionCaches();
 			return NoContent();
 		}
 
@@ -164,6 +202,9 @@ namespace GameStoreMini.Controllers
 			if (p == null) return NotFound();
 			_db.Promotions.Remove(p);
 			await _db.SaveChangesAsync();
+
+			// Invalidate cache sau khi xóa
+			InvalidatePromotionCaches();
 			return NoContent();
 		}
 
@@ -176,6 +217,8 @@ namespace GameStoreMini.Controllers
 			p.IsActive = !p.IsActive;
 			p.UpdatedAt = DateTime.UtcNow;
 			await _db.SaveChangesAsync();
+
+			InvalidatePromotionCaches();
 			return Ok(new { p.Id, p.IsActive });
 		}
 
@@ -188,6 +231,8 @@ namespace GameStoreMini.Controllers
 			p.IsFeatured = !p.IsFeatured;
 			p.UpdatedAt = DateTime.UtcNow;
 			await _db.SaveChangesAsync();
+
+			InvalidatePromotionCaches();
 			return Ok(new { p.Id, p.IsFeatured });
 		}
 
@@ -195,6 +240,14 @@ namespace GameStoreMini.Controllers
 		[HttpGet("stats")]
 		public async Task<IActionResult> GetStats()
 		{
+
+			// Cache stats vì tính toán có thể khiến DB phải chạy nhiều COUNT/AVG
+			var cacheKey = "admin_promotions_stats";
+			if (_cache.TryGetValue(cacheKey, out PromotionStatsDto? cachedStats))
+			{
+				return Ok(cachedStats);
+			}
+
 			var now = DateTime.UtcNow;
 			var total = await _db.Promotions.CountAsync();
 			var active = await _db.Promotions.CountAsync(p => p.IsActive && p.StartDate <= now && p.EndDate >= now);
@@ -203,7 +256,7 @@ namespace GameStoreMini.Controllers
 			var avg = await _db.Promotions.Where(p => p.PromotionType == "PERCENTAGE").AverageAsync(p => (decimal?)p.DiscountPercentage) ?? 0;
 			var totalGames = await _db.PromotionGames.CountAsync();
 
-			return Ok(new PromotionStatsDto
+			var stats = new PromotionStatsDto
 			{
 				TotalPromotions = total,
 				ActivePromotions = active,
@@ -211,17 +264,59 @@ namespace GameStoreMini.Controllers
 				FeaturedPromotions = featured,
 				AverageDiscountPercentage = avg,
 				TotalGamesInPromotions = totalGames
-			});
+			};
+
+			// Lưu key stats vào cache keys list để invalidate khi thay đổi
+			var keys = _cache.Get<List<string>>(CacheKeysListKey) ?? new List<string>();
+			if (!keys.Contains(cacheKey))
+			{
+				keys.Add(cacheKey);
+				_cache.Set(CacheKeysListKey, keys, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) });
+			}
+
+			_cache.Set(cacheKey, stats, new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(10)));
+
+			return Ok(stats);
 		}
 
 		// GET: api/admin/promotions/available-games?q=...
 		[HttpGet("available-games")]
 		public async Task<IActionResult> GetAvailableGames([FromQuery] string? q = null)
 		{
-			var query = _db.Games.AsQueryable();
-			if (!string.IsNullOrWhiteSpace(q)) query = query.Where(g => g.Title.Contains(q));
-			var items = await query.OrderBy(g => g.Title).Select(g => new { g.Id, g.Title, g.Price, g.Stock, g.ImageUrl }).Take(50).ToListAsync();
-			return Ok(items);
+
+            var cacheKey = $"admin_promotions_available_games_q:{q ?? ""}";
+            if (_cache.TryGetValue(cacheKey, out object? cached))
+            {
+                return Ok(cached);
+            }
+
+            var query = _db.Games.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(q)) query = query.Where(g => g.Title.Contains(q));
+            var items = await query.OrderBy(g => g.Title).Select(g => new { g.Id, g.Title, g.Price, g.Stock, g.ImageUrl }).Take(50).ToListAsync();
+
+            // Lưu key để invalidate sau này
+            var keys = _cache.Get<List<string>>(CacheKeysListKey) ?? new List<string>();
+            if (!keys.Contains(cacheKey))
+            {
+                keys.Add(cacheKey);
+                _cache.Set(CacheKeysListKey, keys, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) });
+            }
+
+            _cache.Set(cacheKey, items, new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(5)).SetAbsoluteExpiration(TimeSpan.FromMinutes(20)));
+
+            return Ok(items);
+		}
+
+		// Helper: invalidate tất cả cache liên quan đến promotions (dùng khi create/update/delete/toggle)
+		private void InvalidatePromotionCaches()
+		{
+			var keys = _cache.Get<List<string>>(CacheKeysListKey);
+			if (keys == null || !keys.Any()) return;
+			foreach (var k in keys)
+			{
+				_cache.Remove(k);
+			}
+			_cache.Remove(CacheKeysListKey);
 		}
 	}
 }

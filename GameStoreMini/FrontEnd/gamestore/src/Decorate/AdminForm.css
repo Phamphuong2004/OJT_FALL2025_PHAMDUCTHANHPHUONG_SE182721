@@ -1,0 +1,118 @@
+/* Admin Add/Edit Game form styles */
+.admin-form {
+  padding: 28px 32px;
+  max-width: 900px;
+  margin: 0 auto;
+  background: transparent;
+}
+
+.admin-form h2 {
+  font-size: 32px;
+  margin-bottom: 18px;
+  color: #0f172a;
+}
+
+.admin-form .card {
+  background: white;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.04);
+}
+
+.admin-form .row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.admin-form label {
+  display: block;
+  margin-bottom: 6px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.admin-form input[type="text"],
+.admin-form input[type="number"],
+.admin-form textarea,
+.admin-form select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e6e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #ffffff;
+}
+
+.admin-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.admin-form .col-2 {
+  flex: 1;
+}
+.admin-form .col-1 {
+  flex: 0 0 220px;
+}
+
+.admin-form .file-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.admin-form .img-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f8fafc, #f3f4f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #eef2f7;
+}
+.admin-form .img-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-form .actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 12px;
+}
+.admin-form button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #e6e7eb;
+  cursor: pointer;
+}
+.admin-form button.primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+.admin-form button[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 768px) {
+  .admin-form .row {
+    flex-direction: column;
+  }
+  .admin-form .col-1 {
+    flex: none;
+    width: 100%;
+  }
+  .admin-form .img-preview {
+    width: 100px;
+    height: 100px;
+  }
+}

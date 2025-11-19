@@ -32,8 +32,28 @@ export default function AdminOrderManagement() {
     try {
       const status = activeTab === "all" ? null : activeTab;
       const data = await OrderAPI.getAllOrdersAdmin(status, currentPage, 20);
-      setOrders(data.data || []);
-      setTotalPages(data.totalPages || 1);
+      console.debug("[AdminOrderManagement] fetchOrders response:", data);
+
+      // Handle multiple possible shapes returned by the backend:
+      // - { data: [...], totalPages }
+      // - { orders: [...], totalPages }
+      // - [...] (array directly)
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data?.data)) {
+        list = data.data;
+      } else if (Array.isArray(data?.orders)) {
+        list = data.orders;
+      } else if (Array.isArray(data?.result)) {
+        list = data.result;
+      }
+
+      setOrders(list);
+
+      const pages =
+        data?.totalPages || data?.pageCount || data?.totalPagesCount || 1;
+      setTotalPages(pages || 1);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
       alert("Lỗi khi tải danh sách đơn hàng");
@@ -102,6 +122,122 @@ export default function AdminOrderManagement() {
       Refund: "Hoàn tiền",
     };
     return texts[status] || status;
+  };
+
+  // Helper to derive a friendly display name and email for an order
+  const coalesce = (...vals) => {
+    for (const v of vals) {
+      if (v !== undefined && v !== null && v !== "") return v;
+    }
+    return null;
+  };
+
+  const composeNameFromParts = (obj) => {
+    const first = coalesce(
+      obj?.firstName,
+      obj?.FirstName,
+      obj?.first_name,
+      obj?.givenName
+    );
+    const last = coalesce(
+      obj?.lastName,
+      obj?.LastName,
+      obj?.last_name,
+      obj?.familyName
+    );
+    if (first || last)
+      return `${(first || "").trim()} ${(last || "").trim()}`.trim();
+    return null;
+  };
+
+  const beautifyName = (raw) => {
+    if (!raw) return null;
+    // If it's an email, use local-part
+    const emailMatch = raw.match(/^([^@]+)@/);
+    let s = emailMatch ? emailMatch[1] : raw;
+    // Replace separators with spaces and remove digits at the end of tokens
+    s = s.replace(/[_\.\-]+/g, " ").replace(/\d+/g, "");
+    // Split tokens and capitalize
+    const parts = s
+      .split(/\s+/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .map((p) => p[0]?.toUpperCase() + p.slice(1).toLowerCase());
+    if (parts.length === 0) return null;
+    // If result is still single token, and that token length < 3, give up
+    const candidate = parts.join(" ");
+    if (candidate.length < 2) return null;
+    return candidate;
+  };
+
+  const getOrderEmail = (order) =>
+    coalesce(
+      // Prefer normalized field added by backend
+      order?.CustomerEmailNormalized,
+      order?.customerEmail,
+      order?.CustomerEmail,
+      order?.email,
+      order?.Email,
+      order?.user?.email,
+      order?.user?.Email,
+      order?.contactEmail,
+      order?.contact?.email,
+      order?.buyer?.email,
+      order?.buyer?.emailAddress,
+      order?.billing?.email,
+      order?.shipping?.email,
+      order?.Customer?.Email,
+      order?.CustomerEmailAddress,
+      null
+    ) || "";
+
+  const getOrderName = (order) => {
+    // Prefer computed full name from backend if available
+    if (order?.CustomerFullName) {
+      // beautify if it looks like a username/email
+      const cf = order.CustomerFullName;
+      if (!/\s+/.test(cf)) {
+        const b = beautifyName(cf);
+        if (b) return b;
+      }
+      return cf;
+    }
+    const nameCandidates = [
+      order?.customerName,
+      order?.CustomerName,
+      order?.customer,
+      order?.Customer,
+      order?.user?.userName,
+      order?.user?.user_name,
+      order?.user?.name,
+      order?.user?.fullName,
+      order?.user?.full_name,
+      order?.buyer?.fullName,
+      order?.buyer?.name,
+      order?.shipping?.FullName,
+      order?.shipping?.fullName,
+      order?.shipping?.Fullname,
+      order?.shipping?.FullName,
+    ];
+
+    for (const cand of nameCandidates) {
+      if (cand) return cand;
+    }
+
+    // try composing from first/last fields in common places
+    const composed =
+      composeNameFromParts(order) ||
+      composeNameFromParts(order?.user) ||
+      composeNameFromParts(order?.Customer) ||
+      composeNameFromParts(order?.shipping) ||
+      composeNameFromParts(order?.buyer);
+    if (composed) return composed;
+
+    // fallback to email if present
+    const email = getOrderEmail(order);
+    if (email) return email;
+
+    return "Guest";
   };
 
   return (
@@ -204,62 +340,62 @@ export default function AdminOrderManagement() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="order-number">
-                      #{order.orderNumber || order.id}
-                    </td>
-                    <td>
-                      <div className="customer-info">
-                        <strong>
-                          {order.customerName ||
-                            order.user?.userName ||
-                            "Guest"}
-                        </strong>
-                        <small>{order.customerEmail}</small>
-                      </div>
-                    </td>
-                    <td>
-                      {new Date(order.createdAt).toLocaleDateString("vi-VN")}
-                    </td>
-                    <td>{order.items?.length || 0} sản phẩm</td>
-                    <td className="price">
-                      {order.total.toLocaleString("vi-VN")}₫
-                    </td>
-                    <td>
-                      <select
-                        className="status-select"
-                        style={{ color: getStatusColor(order.status) }}
-                        value={order.status}
-                        onChange={(e) =>
-                          handleStatusChange(order.id, e.target.value)
-                        }
-                      >
-                        <option value="Pending">Chờ xác nhận</option>
-                        <option value="Processing">Đang xử lý</option>
-                        <option value="Shipping">Đang giao</option>
-                        <option value="Completed">Hoàn thành</option>
-                        <option value="Cancelled">Đã hủy</option>
-                        <option value="Refund">Hoàn tiền</option>
-                      </select>
-                    </td>
-                    <td>
-                      <span
-                        className={`payment-badge ${order.paymentStatus?.toLowerCase()}`}
-                      >
-                        {order.paymentStatus}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn-view"
-                        onClick={() => handleViewDetails(order.id)}
-                      >
-                        <i className="fas fa-eye"></i> Xem
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {orders.map((order) => {
+                  const email = getOrderEmail(order);
+                  const name = getOrderName(order);
+                  return (
+                    <tr key={order.id}>
+                      <td className="order-number">
+                        #{order.orderNumber || order.id}
+                      </td>
+                      <td>
+                        <div className="customer-info">
+                          <strong>{name}</strong>
+                          {email && email !== name && <small>{email}</small>}
+                        </div>
+                      </td>
+                      <td>
+                        {new Date(order.createdAt).toLocaleDateString("vi-VN")}
+                      </td>
+                      <td>{order.items?.length || 0} sản phẩm</td>
+                      <td className="price">
+                        {order.total.toLocaleString("vi-VN")}₫
+                      </td>
+                      <td>
+                        <select
+                          className="status-select"
+                          style={{ color: getStatusColor(order.status) }}
+                          value={order.status}
+                          onChange={(e) =>
+                            handleStatusChange(order.id, e.target.value)
+                          }
+                        >
+                          <option value="Pending">Chờ xác nhận</option>
+                          <option value="Processing">Đang xử lý</option>
+                          <option value="Shipping">Đang giao</option>
+                          <option value="Completed">Hoàn thành</option>
+                          <option value="Cancelled">Đã hủy</option>
+                          <option value="Refund">Hoàn tiền</option>
+                        </select>
+                      </td>
+                      <td>
+                        <span
+                          className={`payment-badge ${order.paymentStatus?.toLowerCase()}`}
+                        >
+                          {order.paymentStatus}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="btn-view"
+                          onClick={() => handleViewDetails(order.id)}
+                        >
+                          <i className="fas fa-eye"></i> Xem
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -306,11 +442,11 @@ export default function AdminOrderManagement() {
               <div className="order-info-grid">
                 <div className="info-item">
                   <label>Khách hàng:</label>
-                  <span>{selectedOrder.customerName || "Guest"}</span>
+                  <span>{getOrderName(selectedOrder)}</span>
                 </div>
                 <div className="info-item">
                   <label>Email:</label>
-                  <span>{selectedOrder.customerEmail}</span>
+                  <span>{getOrderEmail(selectedOrder) || "N/A"}</span>
                 </div>
                 <div className="info-item">
                   <label>Số điện thoại:</label>

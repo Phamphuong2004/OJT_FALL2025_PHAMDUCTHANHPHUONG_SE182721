@@ -9,6 +9,7 @@ using GameStoreMini.Models;
 using GameStoreMini.Utils;
 using Microsoft.Extensions.FileProviders;
 using System.IO;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+#region Caching Services
+// ⭐ Thêm caching: in-memory cache để cache các endpoint đọc nhiều
+// (Ví dụ: promotions, categories). ResponseCaching để hỗ trợ cache responses nếu cần.
+builder.Services.AddMemoryCache();
+builder.Services.AddResponseCaching();
+#endregion
 
 // ⭐ THÊM DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -112,10 +119,36 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
+// ⭐ Global exception handler: trả về JSON lỗi chuẩn và log ngắn gọn
+// Comment bằng tiếng Việt để dễ hiểu khi bạn đọc code.
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.ContentType = "application/json";
+        var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        var ex = feature?.Error;
+        var payload = new
+        {
+            error = new
+            {
+                message = ex?.Message ?? "Đã có lỗi xảy ra",
+                // Không gửi stack trace về client production (có thể log ở server)
+            }
+        };
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+    });
+});
+
 app.UseRouting();
 
 // serve wwwroot by default
 app.UseStaticFiles();
+
+// ⭐ Sử dụng middleware response caching (nếu client/endpoint hỗ trợ cache)
+// Lưu ý: cần config header [ResponseCache] hoặc cấu hình cache-control trên response
+app.UseResponseCaching();
 
 // serve Uploads folder at /uploads
 var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "Uploads");

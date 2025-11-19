@@ -51,10 +51,11 @@ function AdminSidebar({ collapsed, onToggle, onLogout }) {
       label: "Quản lý đơn hàng",
     },
     {
-      path: "/admin/add-game",
+      path: "/admin/games",
       icon: "fa-gamepad",
       label: "Quản lý game",
     },
+
     {
       path: "/admin/reviews",
       icon: "fa-star",

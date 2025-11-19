@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import AdminUserAPI from "../API/AdminUserAPI";
+import "../Decorate/AdminUsers.css";
 
 export default function UsersList() {
   const [users, setUsers] = useState([]);
@@ -57,58 +58,94 @@ export default function UsersList() {
   };
 
   return (
-    <div>
+    <div className="admin-users">
       <h2>Admin — Users</h2>
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Email confirmed</th>
-              <th>Locked</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users && users.length ? (
-              users.map((u) => (
-                <tr key={u.id} style={{ borderTop: "1px solid #eee" }}>
-                  <td>{u.id}</td>
-                  <td>{u.email}</td>
-                  <td>{u.role}</td>
-                  <td>{String(u.emailConfirmed)}</td>
-                  <td>{u.lockoutEnd ? "Yes" : "No"}</td>
-                  <td>
-                    <button onClick={() => handleChangeRole(u)}>
-                      Change role
-                    </button>
-                    <button
-                      onClick={() => handleToggleLock(u)}
-                      style={{ marginLeft: 8 }}
-                    >
-                      {u.lockoutEnd ? "Unlock" : "Lock"}
-                    </button>
+      <div style={{ marginBottom: 12 }}>
+        <button
+          className="primary"
+          onClick={async () => {
+            if (
+              !window.confirm(
+                "Populate missing FullName values from username/email?"
+              )
+            )
+              return;
+            try {
+              setLoading(true);
+              const res = await AdminUserAPI.populateFullNames();
+              alert(`Updated ${res.updated} users`);
+              load();
+            } catch (e) {
+              console.error(e);
+              alert("Failed to populate: " + (e?.response?.data || e.message));
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >
+          Populate FullNames
+        </button>
+      </div>
+      <div className="users-card">
+        {loading ? (
+          <div>Loading...</div>
+        ) : (
+          <table className="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User name</th>
+                <th>Full name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Email confirmed</th>
+                <th>Locked</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users && users.length ? (
+                users.map((u) => (
+                  <tr key={u.id}>
+                    <td>{u.id}</td>
+                    <td>{u.userName || u.userName}</td>
+                    <td>{u.fullName || ""}</td>
+                    <td>{u.email}</td>
+                    <td>{u.role}</td>
+                    <td>{String(u.emailConfirmed)}</td>
+                    <td>{u.lockoutEnd ? "Yes" : "No"}</td>
+                    <td className="user-actions">
+                      <button
+                        className="primary"
+                        onClick={() => handleChangeRole(u)}
+                      >
+                        Change role
+                      </button>
+                      <button
+                        className={u.lockoutEnd ? "primary" : "danger"}
+                        onClick={() => handleToggleLock(u)}
+                        style={{ marginLeft: 8 }}
+                      >
+                        {u.lockoutEnd ? "Unlock" : "Lock"}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} style={{ padding: 20 }}>
+                    No users found
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} style={{ padding: 20 }}>
-                  No users found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
 
-      <div style={{ marginTop: 12 }}>
+      <div className="pagination-controls">
         <button onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
-        <span style={{ margin: "0 8px" }}>Page {page}</span>
+        <span>Page {page}</span>
         <button onClick={() => setPage((p) => p + 1)}>Next</button>
       </div>
     </div>
