@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { trackOrder } from "../API/OrderAPI";
 import "../Decorate/OrderTrackingButton.css";
 
 const OrderTrackingButton = () => {
   const [showModal, setShowModal] = useState(false);
+  const [modalStyle, setModalStyle] = useState({});
+  const btnRef = useRef(null);
+  const wrapperRef = useRef(null);
   const [orderCode, setOrderCode] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -27,11 +30,44 @@ const OrderTrackingButton = () => {
     }
   };
 
+  useEffect(() => {
+    if (!showModal) return;
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const top = rect.bottom + 8; // small gap
+    const left = rect.left;
+    setModalStyle({
+      position: "fixed",
+      top: `${top}px`,
+      left: `${left}px`,
+      zIndex: 9999,
+    });
+
+    const onDocClick = (e) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target) &&
+        !btn.contains(e.target)
+      ) {
+        setShowModal(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    const onResize = () => setShowModal(false);
+    window.addEventListener("resize", onResize);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [showModal]);
+
   return (
     <>
       <button
         className="order-tracking-button-modern"
-        onClick={() => setShowModal(true)}
+        ref={btnRef}
+        onClick={() => setShowModal((s) => !s)}
         style={{
           background: "linear-gradient(90deg, #6a5af9 0%, #7b7bf9 100%)",
           color: "#fff",
@@ -84,7 +120,13 @@ const OrderTrackingButton = () => {
         </span>
       </button>
       {showModal && (
-        <div className="order-track-modal">
+        <div
+          ref={wrapperRef}
+          className="order-track-dropdown"
+          style={{ ...modalStyle }}
+          role="dialog"
+          aria-modal="false"
+        >
           <form className="order-track-form" onSubmit={handleSubmit}>
             <h3>Kiểm tra đơn hàng</h3>
             <input
@@ -104,17 +146,19 @@ const OrderTrackingButton = () => {
               disabled={loading}
             />
             {error && <div className="error">{error}</div>}
-            <button type="submit" disabled={loading}>
-              {loading ? "Đang kiểm tra..." : "Kiểm tra"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              disabled={loading}
-              style={{ marginLeft: 8 }}
-            >
-              Đóng
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="submit" disabled={loading} style={{ flex: 1 }}>
+                {loading ? "Đang kiểm tra..." : "Kiểm tra"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                disabled={loading}
+                style={{ marginLeft: 0 }}
+              >
+                Đóng
+              </button>
+            </div>
           </form>
         </div>
       )}

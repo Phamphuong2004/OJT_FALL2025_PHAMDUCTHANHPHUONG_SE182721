@@ -4,6 +4,7 @@ import GameAPI from "../API/GameAPI";
 import { useCart } from "../Cart/CartProvider";
 import { useToast } from "../Components/Toast";
 import Pagination from "../Components/Pagination";
+import formatCurrency from "../Utils/formatCurrency";
 import ReviewSummary from "../Review/ReviewSummary";
 import WishlistButton from "../Wishlist/WishlistButton";
 import "../Decorate/Pages.css";
@@ -152,11 +153,7 @@ export default function Store() {
     setCurrentPage(1);
   }, [categoryId, q, minRating, sortBy]);
 
-  const currencyFormatter = new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  });
+  // Use centralized helper to ensure consistent currency formatting
 
   // base URL để prefix nếu API trả đường dẫn tương đối (set VITE_API_BASE=https://localhost:7154)
   const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
@@ -329,9 +326,7 @@ export default function Store() {
             {currentGames.map((g) => {
               const title = g.title ?? g.name ?? g.gameName ?? "Untitled";
               const price =
-                g.price != null
-                  ? currencyFormatter.format(g.price)
-                  : g.priceText ?? "";
+                g.price != null ? formatCurrency(g.price) : g.priceText ?? "";
               let imgSrc =
                 g.imageUrl ??
                 g.ImageUrl ?? // some backends use PascalCase

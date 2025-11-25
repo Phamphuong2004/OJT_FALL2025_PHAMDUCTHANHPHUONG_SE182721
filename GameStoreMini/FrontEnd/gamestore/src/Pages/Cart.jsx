@@ -1,6 +1,7 @@
 import React from "react";
 import { useCart } from "../Cart/CartProvider";
 import "../Decorate/Cart.css";
+import formatCurrency from "../Utils/formatCurrency";
 import { useNavigate } from "react-router-dom"; // <-- thêm import
 
 export default function Cart() {
@@ -15,7 +16,7 @@ export default function Cart() {
 
   const navigate = useNavigate(); // <-- thêm navigate
 
-  const fmtCurrency = (v) => new Intl.NumberFormat("vi-VN").format(v) + " đ";
+  const fmtCurrency = (v) => formatCurrency(v);
 
   return (
     <div className="cart-page">

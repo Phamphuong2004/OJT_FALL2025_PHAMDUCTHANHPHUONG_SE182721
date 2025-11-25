@@ -1,0 +1,96 @@
+/* Header / Hero styles for Home page */
+.hero {
+  padding: 2.25rem 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0),
+    rgba(246, 248, 251, 0.4)
+  );
+}
+.hero .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+.hero .title {
+  font-size: clamp(1.4rem, 3.5vw, 2.25rem);
+  margin: 0 0 0.5rem;
+  color: #0f172a;
+  line-height: 1.05;
+}
+.hero .subtitle {
+  color: var(--muted, #6b7280);
+  max-width: 68ch;
+  margin: 0 0 1rem;
+}
+
+.hero .cta-group {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.hero .promo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(43, 110, 246, 0.12),
+    rgba(43, 110, 246, 0.06)
+  );
+  color: #1e3a8a;
+  font-weight: 700;
+}
+
+.hero-card {
+  width: 220px;
+  height: 140px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    180deg,
+    rgba(43, 110, 246, 0.06),
+    rgba(255, 122, 89, 0.04)
+  );
+}
+
+/* Responsive adjustments */
+@media (max-width: 860px) {
+  .hero {
+    padding: 1.5rem 0;
+  }
+  .hero .title {
+    font-size: 1.6rem;
+  }
+  .hero-card {
+    width: 180px;
+    height: 120px;
+  }
+}
+
+@media (max-width: 520px) {
+  .hero {
+    padding: 1rem 0;
+  }
+  .hero .title {
+    font-size: 1.2rem;
+  }
+  .hero .subtitle {
+    max-width: 100%;
+  }
+  .hero-card {
+    width: 140px;
+    height: 100px;
+    margin-top: 12px;
+  }
+  .hero .container > div {
+    flex-direction: column;
+  }
+}
+
+/* end header styles */

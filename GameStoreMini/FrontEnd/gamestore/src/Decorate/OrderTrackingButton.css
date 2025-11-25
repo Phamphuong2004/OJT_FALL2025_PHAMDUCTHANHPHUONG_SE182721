@@ -221,6 +221,15 @@
   z-index: 1000;
 }
 
+.order-track-dropdown {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(2, 6, 23, 0.2);
+  padding: 14px;
+  min-width: 320px;
+  max-width: 420px;
+}
+
 .order-track-form {
   background: #fff;
   border-radius: 18px;

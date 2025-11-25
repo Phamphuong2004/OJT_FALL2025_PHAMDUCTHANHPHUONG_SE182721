@@ -1,15 +1,11 @@
 import axios from "axios";
 import { getToken } from "../Auth/useAuth";
 
-const BASE =
-  (process.env.REACT_APP_API_BASE || "https://localhost:7201") +
-  "/api/promotions";
-
+const API_BASE = import.meta.env.VITE_API_BASE || "https://localhost:7201";
+const BASE = API_BASE + "/api/promotions";
 // Some server endpoints are exposed under singular /api/promotion (claim endpoints),
 // keep a singular base handy.
-const BASE_SINGULAR =
-  (process.env.REACT_APP_API_BASE || "https://localhost:7201") +
-  "/api/promotion";
+const BASE_SINGULAR = API_BASE + "/api/promotion";
 
 const authHeaders = () => {
   const token = getToken();

@@ -11,6 +11,24 @@
   color: #0f172a;
 }
 
+.users-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 12px;
+}
+
+.site-clock {
+  font-size: 0.95rem;
+  color: #374151;
+  background: #f6f7fb;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  white-space: nowrap;
+}
+
 .users-card {
   background: white;
   border: 1px solid #eef2f7;

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AdminPromotionAPI from "../API/AdminPromotionAPI";
 import { useToast } from "../Components/Toast";
 import { isAuthenticated, getUserRole } from "../Auth/useAuth";
+import formatCurrency from "../Utils/formatCurrency";
 import "../Decorate/AdminPromotion.css";
 
 export default function PromotionDashboard() {
@@ -25,9 +26,7 @@ export default function PromotionDashboard() {
     }
   }, [navigate, toast]);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN").format(amount) + " đ";
-  };
+  // Use shared currency formatter helper
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("vi-VN", {

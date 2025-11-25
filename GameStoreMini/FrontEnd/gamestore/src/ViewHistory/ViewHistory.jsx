@@ -4,11 +4,14 @@ import { History, ShoppingCart, Trash2, Star, Clock } from "lucide-react";
 import viewHistoryAPI from "../API/ViewHistoryAPI";
 import { useCart } from "../Cart/CartProvider";
 import Pagination from "../Components/Pagination";
+import formatCurrency from "../Utils/formatCurrency";
+import { useToast } from "../Components/Toast";
 import "../Decorate/ViewHistory.css";
 
 const ViewHistory = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const toast = useToast();
   const [viewHistory, setViewHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState({});
@@ -37,7 +40,9 @@ const ViewHistory = () => {
     } catch (error) {
       console.error("Error fetching view history:", error);
       if (error.response?.status === 401) {
-        alert("Vui lòng đăng nhập");
+        try {
+          toast.info("Vui lòng đăng nhập");
+        } catch {}
         navigate("/login");
       }
     } finally {
@@ -54,7 +59,9 @@ const ViewHistory = () => {
       setViewHistory((prev) => prev.filter((item) => item.gameId !== gameId));
     } catch (error) {
       console.error("Error removing from history:", error);
-      alert("Không thể xóa game");
+      try {
+        toast.error("Không thể xóa game");
+      } catch {}
     } finally {
       setRemoving((prev) => ({ ...prev, [gameId]: false }));
     }
@@ -68,7 +75,9 @@ const ViewHistory = () => {
       setViewHistory([]);
     } catch (error) {
       console.error("Error clearing history:", error);
-      alert("Không thể xóa lịch sử");
+      try {
+        toast.error("Không thể xóa lịch sử");
+      } catch {}
     }
   };
 
@@ -80,10 +89,14 @@ const ViewHistory = () => {
         title: item.gameTitle,
         unitPrice: item.gamePrice,
       });
-      alert("Đã thêm vào giỏ hàng!");
+      try {
+        toast.success("Đã thêm vào giỏ hàng!");
+      } catch {}
     } catch (error) {
       console.error("Error adding to cart:", error);
-      alert("Không thể thêm vào giỏ hàng");
+      try {
+        toast.error("Không thể thêm vào giỏ hàng");
+      } catch {}
     }
   };
 
@@ -91,11 +104,7 @@ const ViewHistory = () => {
     fetchViewHistory(page);
   };
 
-  const currencyFormatter = new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  });
+  // Use centralized helper for consistent currency formatting across app
 
   const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
 
@@ -151,100 +160,95 @@ const ViewHistory = () => {
         </div>
       ) : (
         <>
-          <div className="view-history-grid">
-            {viewHistory.map((item) => {
-              let imgSrc = item.gameImageUrl || "";
-              if (imgSrc && !/^https?:\/\//i.test(imgSrc) && API_BASE) {
-                imgSrc =
-                  API_BASE + (imgSrc.startsWith("/") ? "" : "/") + imgSrc;
-              }
+          {viewHistory.map((item) => {
+            let imgSrc = item.gameImageUrl || "";
+            if (imgSrc && !/^https?:\/\//i.test(imgSrc) && API_BASE) {
+              imgSrc = API_BASE + (imgSrc.startsWith("/") ? "" : "/") + imgSrc;
+            }
 
-              return (
-                <div key={item.viewHistoryId} className="history-card card">
-                  <div className="history-image">
-                    <img
-                      src={imgSrc || "/placeholder-game.png"}
-                      alt={item.gameTitle}
-                      onError={(e) =>
-                        (e.currentTarget.src = "/placeholder-game.png")
-                      }
-                      onClick={() => navigate(`/games/${item.gameId}`)}
-                      style={{ cursor: "pointer" }}
-                    />
-                    <button
-                      onClick={() => handleRemove(item.gameId)}
-                      disabled={removing[item.gameId]}
-                      className="btn-remove"
-                      title="Xóa khỏi lịch sử"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    <div className="view-badge">
-                      <Clock size={14} />
-                      <span>
-                        {formatViewTime(item.viewedAt, item.lastViewedAt)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="history-content">
-                    <h3
-                      onClick={() => navigate(`/games/${item.gameId}`)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      {item.gameTitle}
-                    </h3>
-
-                    {item.categoryName && (
-                      <div className="category-badge">{item.categoryName}</div>
-                    )}
-
-                    <p className="description">
-                      {item.gameDescription?.slice(0, 100)}
-                      {item.gameDescription?.length > 100 && "..."}
-                    </p>
-
-                    <div className="rating">
-                      <Star size={16} fill="#fbbf24" stroke="#fbbf24" />
-                      <span>
-                        {item.averageRating > 0
-                          ? item.averageRating.toFixed(1)
-                          : "N/A"}
-                      </span>
-                      <span className="muted">
-                        ({item.reviewCount} reviews)
-                      </span>
-                    </div>
-
-                    <div className="history-footer">
-                      <div className="price">
-                        {currencyFormatter.format(item.gamePrice)}
-                      </div>
-                      <div className="actions">
-                        <button
-                          onClick={() => navigate(`/games/${item.gameId}`)}
-                          className="btn ghost small"
-                        >
-                          Chi tiết
-                        </button>
-                        <button
-                          onClick={() => handleAddToCart(item)}
-                          className="btn primary small"
-                        >
-                          <ShoppingCart size={16} />
-                          Thêm vào giỏ
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="view-stats muted small">
-                      Đã xem {item.viewCount} lần
-                    </div>
+            return (
+              <div key={item.viewHistoryId} className="history-card card">
+                <div className="history-image">
+                  <img
+                    src={imgSrc || "/placeholder-game.png"}
+                    alt={item.gameTitle}
+                    onError={(e) =>
+                      (e.currentTarget.src = "/placeholder-game.png")
+                    }
+                    onClick={() => navigate(`/games/${item.gameId}`)}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <button
+                    onClick={() => handleRemove(item.gameId)}
+                    disabled={removing[item.gameId]}
+                    className="btn-remove"
+                    title="Xóa khỏi lịch sử"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                  <div className="view-badge">
+                    <Clock size={14} />
+                    <span>
+                      {formatViewTime(item.viewedAt, item.lastViewedAt)}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+
+                <div className="history-content">
+                  <h3
+                    onClick={() => navigate(`/games/${item.gameId}`)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {item.gameTitle}
+                  </h3>
+
+                  {item.categoryName && (
+                    <div className="category-badge">{item.categoryName}</div>
+                  )}
+
+                  <p className="description">
+                    {item.gameDescription?.slice(0, 100)}
+                    {item.gameDescription?.length > 100 && "..."}
+                  </p>
+
+                  <div className="rating">
+                    <Star size={16} fill="#fbbf24" stroke="#fbbf24" />
+                    <span>
+                      {item.averageRating > 0
+                        ? item.averageRating.toFixed(1)
+                        : "N/A"}
+                    </span>
+                    <span className="muted">({item.reviewCount} reviews)</span>
+                  </div>
+
+                  <div className="history-footer">
+                    <div className="price">
+                      {formatCurrency(item.gamePrice)}
+                    </div>
+                    <div className="actions">
+                      <button
+                        onClick={() => navigate(`/games/${item.gameId}`)}
+                        className="btn ghost small"
+                      >
+                        Chi tiết
+                      </button>
+                      <button
+                        onClick={() => handleAddToCart(item)}
+                        className="btn primary small"
+                      >
+                        <ShoppingCart size={16} />
+                        Thêm vào giỏ
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="view-stats muted small">
+                    Đã xem {item.viewCount} lần
+                  </div>
+                </div>
+              </div>
+            );
+          })}
 
           {pagination.totalPages > 1 && (
             <Pagination

@@ -18,11 +18,33 @@ const Loading = ({ message = "Loading..." }) => (
   <div style={{ padding: 20 }}>{message}</div>
 );
 
+// Dev-friendly error fallback to show import-time errors (helps debugging lazy failures)
+const ErrorFallback = ({ error, fallbackText }) => (
+  <div style={{ padding: 20 }}>
+    <div style={{ fontWeight: 700, marginBottom: 8 }}>{fallbackText}</div>
+    <div style={{ color: "#b91c1c", whiteSpace: "pre-wrap" }}>
+      {error?.message}
+    </div>
+    {error?.stack && (
+      <pre
+        style={{
+          marginTop: 8,
+          whiteSpace: "pre-wrap",
+          maxHeight: 240,
+          overflow: "auto",
+        }}
+      >
+        {error.stack}
+      </pre>
+    )}
+  </div>
+);
+
 // Helper that lazily imports a module and falls back to a tiny component if the import fails.
 const lazyPage = (importFn, fallbackText) =>
   React.lazy(() =>
-    importFn().catch(() => ({
-      default: () => <Loading message={fallbackText} />,
+    importFn().catch((err) => ({
+      default: () => <ErrorFallback error={err} fallbackText={fallbackText} />,
     }))
   );
 

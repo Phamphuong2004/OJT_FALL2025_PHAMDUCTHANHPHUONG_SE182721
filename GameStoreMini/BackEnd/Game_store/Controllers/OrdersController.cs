@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using GameStoreMini.Data;
 using GameStoreMini.Dtos;
 using GameStoreMini.Models;
+using Microsoft.Extensions.Logging;
 
 namespace GameStoreMini.Controllers
 {
@@ -15,7 +16,13 @@ namespace GameStoreMini.Controllers
     public class OrdersController : ControllerBase
     {
         private readonly AppDbContext _db;
-        public OrdersController(AppDbContext db) => _db = db;
+        private readonly ILogger<OrdersController> _logger;
+
+        public OrdersController(AppDbContext db, ILogger<OrdersController> logger)
+        {
+            _db = db;
+            _logger = logger;
+        }
 
         private int? CurrentUserId
         {
@@ -51,24 +58,24 @@ namespace GameStoreMini.Controllers
         {
             // LOG để debug
             var authHeader = Request.Headers["Authorization"].ToString();
-            Console.WriteLine($"[Orders] Checkout called - Authorization header: {(!string.IsNullOrEmpty(authHeader) ? "Present (length: " + authHeader.Length + ")" : "Missing")}");
-            
+            _logger.LogInformation("[Orders] Checkout called - Authorization header: {AuthHeader}", !string.IsNullOrEmpty(authHeader) ? $"Present (length: {authHeader.Length})" : "Missing");
+
             // LOG TẤT CẢ CLAIMS
-            Console.WriteLine($"[Orders] All claims:");
+            _logger.LogInformation("[Orders] All claims:");
             foreach (var claim in User?.Claims ?? Enumerable.Empty<Claim>())
             {
-                Console.WriteLine($"  {claim.Type} = {claim.Value}");
+                _logger.LogInformation("[Orders] Claim - {Type} = {Value}", claim.Type, claim.Value);
             }
-            
-            Console.WriteLine($"[Orders] CurrentUserId: {CurrentUserId?.ToString() ?? "NULL"}");
-            Console.WriteLine($"[Orders] User.Identity.IsAuthenticated: {User?.Identity?.IsAuthenticated}");
+
+            _logger.LogInformation("[Orders] CurrentUserId: {UserId}", CurrentUserId?.ToString() ?? "NULL");
+            _logger.LogInformation("[Orders] User.Identity.IsAuthenticated: {IsAuthenticated}", User?.Identity?.IsAuthenticated);
             
             if (CurrentUserId == null) return Unauthorized();
 
             // Lấy AnonymousId từ header (frontend gửi kèm)
             var anonId = Request.Headers["X-Anonymous-Id"].ToString();
             
-            Console.WriteLine($"[Orders] Looking for cart with UserId: {CurrentUserId.Value} OR AnonymousId: {anonId}");
+            _logger.LogInformation("[Orders] Looking for cart with UserId: {UserId} OR AnonymousId: {AnonId}", CurrentUserId.Value, anonId);
             
             // Tìm cart theo UserId TRƯỚC
             var cart = await _db.Carts
@@ -78,7 +85,7 @@ namespace GameStoreMini.Controllers
             // Nếu không tìm thấy cart của user, thử tìm cart anonymous
             if ((cart == null || !cart.Items.Any()) && !string.IsNullOrEmpty(anonId))
             {
-                Console.WriteLine($"[Orders] User cart not found or empty, trying anonymous cart with id: {anonId}");
+                _logger.LogInformation("[Orders] User cart not found or empty, trying anonymous cart with id: {AnonId}", anonId);
                 var anonymousCart = await _db.Carts
                     .Include(c => c.Items).ThenInclude(i => i.Game)
                     .FirstOrDefaultAsync(c => c.AnonymousId == anonId && c.UserId == null);
@@ -88,7 +95,7 @@ namespace GameStoreMini.Controllers
                     if (cart == null)
                     {
                         // User chưa có cart → Claim anonymous cart
-                        Console.WriteLine($"[Orders] Found anonymous cart, claiming it for user {CurrentUserId.Value}");
+                        _logger.LogInformation("[Orders] Found anonymous cart, claiming it for user {UserId}", CurrentUserId.Value);
                         anonymousCart.UserId = CurrentUserId.Value;
                         anonymousCart.AnonymousId = null;
                         cart = anonymousCart;
@@ -96,7 +103,7 @@ namespace GameStoreMini.Controllers
                     else
                     {
                         // User đã có cart → Merge items từ anonymous cart
-                        Console.WriteLine($"[Orders] Merging anonymous cart items into user cart");
+                        _logger.LogInformation("[Orders] Merging anonymous cart items into user cart");
                         foreach (var anonItem in anonymousCart.Items)
                         {
                             var existingItem = cart.Items.FirstOrDefault(i => i.GameId == anonItem.GameId);
@@ -125,10 +132,10 @@ namespace GameStoreMini.Controllers
                 }
             }
 
-            Console.WriteLine($"[Orders] Cart found: {(cart != null ? "YES" : "NO")}");
+                    _logger.LogInformation("[Orders] Cart found: {HasCart}", cart != null ? "YES" : "NO");
             if (cart != null)
             {
-                Console.WriteLine($"[Orders] Cart.UserId: {cart.UserId}, Cart.Items.Count: {cart.Items.Count}");
+                _logger.LogInformation("[Orders] Cart.UserId: {CartUserId}, Cart.Items.Count: {Count}", cart.UserId, cart.Items.Count);
             }
             
             if (cart == null || !cart.Items.Any()) return BadRequest("Cart is empty.");
@@ -169,7 +176,7 @@ namespace GameStoreMini.Controllers
                     
                     if (unitPrice == 0)
                     {
-                        Console.WriteLine($"[Orders] WARNING: Game {ci.GameId} has price = 0!");
+                        _logger.LogWarning("[Orders] WARNING: Game {GameId} has price = 0!", ci.GameId);
                     }
                     
                     var oi = new OrderItem
@@ -197,9 +204,10 @@ namespace GameStoreMini.Controllers
 
                 return Ok(new { order.Id, order.Total, order.CreatedAt, order.OrderNumber });
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
+                _logger.LogError(ex, "[Orders] Checkout transaction failed");
                 throw;
             }
         }
@@ -351,7 +359,15 @@ namespace GameStoreMini.Controllers
                 await _db.SaveChangesAsync();
                 await tx.CommitAsync();
 
-                return Ok(new { orderId = order.Id, order.Total });
+                // Return a consistent payload including orderNumber so frontend can
+                // redirect to payment or show order details reliably.
+                return Ok(new
+                {
+                    id = order.Id,
+                    orderNumber = order.OrderNumber,
+                    total = order.Total,
+                    createdAt = order.CreatedAt
+                });
             }
             catch
             {
@@ -368,7 +384,7 @@ namespace GameStoreMini.Controllers
             if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
             if (!int.TryParse(userIdClaim, out var userId)) return Unauthorized();
 
-            Console.WriteLine($"[Orders] GetMyOrders called for userId: {userId}");
+            _logger.LogInformation("[Orders] GetMyOrders called for userId: {UserId}", userId);
 
             var orders = await _db.Orders
                 .Where(o => o.UserId == userId)
@@ -377,7 +393,7 @@ namespace GameStoreMini.Controllers
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
 
-            Console.WriteLine($"[Orders] Found {orders.Count} orders for user {userId}");
+            _logger.LogInformation("[Orders] Found {Count} orders for user {UserId}", orders.Count, userId);
 
             return Ok(orders);
         }
@@ -472,7 +488,7 @@ namespace GameStoreMini.Controllers
         [HttpGet("admin/all")]
         public async Task<IActionResult> GetAllOrdersAdmin([FromQuery] string? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            Console.WriteLine($"[Orders] Admin GetAllOrders called - Status: {status}, Page: {page}");
+            _logger.LogInformation("[Orders] Admin GetAllOrders called - Status: {Status}, Page: {Page}", status, page);
 
             var query = _db.Orders
                 .Include(o => o.Items)
@@ -514,7 +530,7 @@ namespace GameStoreMini.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            Console.WriteLine($"[Orders] Found {orders.Count} orders (total: {totalOrders})");
+            _logger.LogInformation("[Orders] Found {Count} orders (total: {Total})", orders.Count, totalOrders);
 
             return Ok(new 
             { 
@@ -560,7 +576,7 @@ namespace GameStoreMini.Controllers
         [HttpPut("admin/{id:int}/status")]
         public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusDto dto)
         {
-            Console.WriteLine($"[Orders] Admin updating order {id} status to: {dto.Status}");
+            _logger.LogInformation("[Orders] Admin updating order {OrderId} status to: {Status}", id, dto.Status);
 
             var order = await _db.Orders.FindAsync(id);
             if (order == null) return NotFound();
@@ -582,7 +598,7 @@ namespace GameStoreMini.Controllers
 
             await _db.SaveChangesAsync();
 
-            Console.WriteLine($"[Orders] Order {id} status updated successfully");
+            _logger.LogInformation("[Orders] Order {OrderId} status updated successfully", id);
             return Ok(new { message = "Order status updated", order });
         }
 
@@ -617,6 +633,138 @@ namespace GameStoreMini.Controllers
         {
             public string Status { get; set; } = "";
             public string? PaymentStatus { get; set; }
+        }
+
+        // DTO for guest cancel
+        public class GuestCancelDto { public string OrderNumber { get; set; } = ""; public string Email { get; set; } = ""; }
+
+        // POST /api/orders/{id}/cancel -> allow customer to cancel their own order
+        [Authorize]
+        [HttpPost("{id:int}/cancel")]
+        public async Task<IActionResult> CancelOrder(int id)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            int? userId = null;
+            if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var parsed)) userId = parsed;
+
+            // Thực hiện hủy trong 1 transaction để tránh race condition
+            using var tx = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                // Lấy lại đơn hàng *under transaction* và include items
+                var order = await _db.Orders
+                    .Include(o => o.Items)
+                    .FirstOrDefaultAsync(o => o.Id == id);
+
+                if (order == null)
+                {
+                    await tx.RollbackAsync();
+                    return NotFound();
+                }
+
+                if (order.UserId != userId && !User.IsInRole("Admin"))
+                {
+                    await tx.RollbackAsync();
+                    return Forbid();
+                }
+
+                // Kiểm tra trạng thái *lần nữa* bên trong transaction
+                if (order.Status == "Cancelled")
+                {
+                    await tx.RollbackAsync();
+                    return BadRequest(new { message = "Order already cancelled" });
+                }
+                if (order.Status == "Completed")
+                {
+                    await tx.RollbackAsync();
+                    return BadRequest(new { message = "Cannot cancel a completed order" });
+                }
+
+                // Restore stock safely: reload each game and update
+                foreach (var it in order.Items)
+                {
+                    var game = await _db.Games.FindAsync(it.GameId);
+                    if (game != null)
+                    {
+                        // Reload to ensure we have latest values and to take a row-level lock
+                        await _db.Entry(game).ReloadAsync();
+                        game.Stock += it.Quantity;
+                        _db.Games.Update(game);
+                    }
+                }
+
+                order.Status = "Cancelled";
+                order.PaymentStatus = "Refund";
+
+                await _db.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(new { success = true, message = "Order cancelled", orderId = order.Id, orderNumber = order.OrderNumber });
+            }
+            catch (Exception ex)
+            {
+                // Log the exception server-side for diagnostics (do not expose full exception to client)
+                _logger.LogError(ex, "[Orders] CancelOrder error for id={OrderId}", id);
+                await tx.RollbackAsync();
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+
+        // POST /api/orders/cancel -> guest cancellation by orderNumber + email
+        [AllowAnonymous]
+        [HttpPost("cancel")]
+        public async Task<IActionResult> GuestCancel([FromBody] GuestCancelDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.OrderNumber) || string.IsNullOrWhiteSpace(dto.Email))
+                return BadRequest(new { message = "OrderNumber and Email required" });
+
+            // Thực hiện trong transaction để đảm bảo atomicity
+            using var tx = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var order = await _db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.OrderNumber == dto.OrderNumber && o.CustomerEmail == dto.Email);
+                if (order == null)
+                {
+                    await tx.RollbackAsync();
+                    return NotFound(new { message = "Order not found" });
+                }
+
+                if (order.Status == "Cancelled")
+                {
+                    await tx.RollbackAsync();
+                    return BadRequest(new { message = "Order already cancelled" });
+                }
+                if (order.Status == "Completed")
+                {
+                    await tx.RollbackAsync();
+                    return BadRequest(new { message = "Cannot cancel a completed order" });
+                }
+
+                foreach (var it in order.Items)
+                {
+                    var game = await _db.Games.FindAsync(it.GameId);
+                    if (game != null)
+                    {
+                        await _db.Entry(game).ReloadAsync();
+                        game.Stock += it.Quantity;
+                        _db.Games.Update(game);
+                    }
+                }
+
+                order.Status = "Cancelled";
+                order.PaymentStatus = "Refund";
+
+                await _db.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(new { success = true, message = "Order cancelled", orderId = order.Id, orderNumber = order.OrderNumber });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Orders] GuestCancel error for orderNumber={OrderNumber}", dto.OrderNumber);
+                await tx.RollbackAsync();
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
         }
     }
 }

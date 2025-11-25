@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import OrderAPI from "../API/OrderAPI";
+import { api } from "../API/ApiClient";
 import "../Decorate/MyOrders.css";
+import formatCurrency from "../Utils/formatCurrency";
 
 const MyOrders = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
 
   const tabs = [
@@ -35,13 +38,15 @@ const MyOrders = () => {
       const normalizeStatus = (s) => {
         if (!s) return "";
         const st = s.toString().toLowerCase();
+        // Detect cancelled variants in English and Vietnamese (e.g. "cancelled", "canceled", "đã hủy", "hủy")
+        if (st.includes("cancel") || st.includes("hủy") || st.includes("huy"))
+          return "cancelled";
         // Map backend variants to our canonical keys used by tabs
         if (st === "confirmed") return "processing"; // treat Confirmed as Processing
         if (st === "processing") return "processing";
         if (st === "pending") return "pending";
         if (st === "shipping") return "shipping";
         if (st === "completed") return "completed";
-        if (st === "cancelled" || st === "canceled") return "cancelled";
         if (st === "refund" || st === "refunded") return "refund";
         return st; // fallback to raw lowercased status
       };
@@ -51,8 +56,15 @@ const MyOrders = () => {
         normalizedStatus: normalizeStatus(o.status || o.Status),
       }));
 
+      // By default (activeTab === 'all') hide cancelled orders to avoid
+      // showing cancelled items in the main list unless user selects the
+      // 'Đã hủy' tab explicitly.
       let filteredOrders = normalized;
-      if (activeTab !== "all") {
+      if (activeTab === "all") {
+        filteredOrders = normalized.filter(
+          (order) => order.normalizedStatus !== "cancelled"
+        );
+      } else {
         filteredOrders = normalized.filter(
           (order) => order.normalizedStatus === activeTab
         );
@@ -66,6 +78,34 @@ const MyOrders = () => {
       setOrders([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Cancel an order (authenticated)
+  const handleCancelOrder = async (orderId) => {
+    if (!orderId) return;
+    if (!confirm("Bạn có chắc chắn muốn hủy đơn này?")) return;
+    setCancelLoading((s) => ({ ...s, [orderId]: true }));
+    try {
+      // call backend cancel endpoint (authenticated)
+      const res = await api.post(`/orders/${orderId}/cancel`);
+      console.log("[MyOrders] Cancel response:", res.data);
+
+      // Optimistically remove the cancelled order from UI so it disappears immediately
+      setOrders((prev) => prev.filter((o) => Number(o.id) !== Number(orderId)));
+
+      // Refresh list in background to ensure consistency
+      fetchOrders().catch((e) =>
+        console.error("Refresh after cancel failed", e)
+      );
+
+      alert(res.data?.message || "Đã hủy đơn");
+    } catch (err) {
+      console.error("[MyOrders] Cancel failed", err);
+      const msg = err?.response?.data?.message || "Hủy đơn thất bại";
+      alert(msg);
+    } finally {
+      setCancelLoading((s) => ({ ...s, [orderId]: false }));
     }
   };
 
@@ -256,7 +296,7 @@ const MyOrders = () => {
                           </div>
                           <div className="item-price">
                             <span className="sale-price">
-                              {totalPrice.toLocaleString("vi-VN")}₫
+                              {formatCurrency(totalPrice)}
                             </span>
                           </div>
                         </div>
@@ -277,7 +317,7 @@ const MyOrders = () => {
                     <div className="order-total">
                       <span className="total-label">Thành tiền:</span>
                       <span className="total-amount">
-                        {calculatedTotal.toLocaleString("vi-VN")}₫
+                        {formatCurrency(calculatedTotal)}
                       </span>
                     </div>
                     <div className="order-actions">
@@ -290,7 +330,15 @@ const MyOrders = () => {
                         </>
                       )}
                       {order.normalizedStatus === "pending" && (
-                        <button className="btn-danger">Hủy Đơn Hàng</button>
+                        <button
+                          className="btn-danger"
+                          onClick={() => handleCancelOrder(order.id)}
+                          disabled={!!cancelLoading[order.id]}
+                        >
+                          {cancelLoading[order.id]
+                            ? "Đang hủy..."
+                            : "Hủy Đơn Hàng"}
+                        </button>
                       )}
                       {order.normalizedStatus === "shipping" && (
                         <button className="btn-success">

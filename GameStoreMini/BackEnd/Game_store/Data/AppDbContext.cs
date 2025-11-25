@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using GameStoreMini.Models;
 using Game_store.Models;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GameStoreMini.Data
 {
@@ -206,6 +210,38 @@ namespace GameStoreMini.Data
                 entity.Property(a => a.City).IsRequired().HasMaxLength(100);
                 entity.Property(a => a.PostalCode).HasMaxLength(10);
             });
+        }
+
+        public override int SaveChanges()
+        {
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.Entity is ITimestamped && (e.State == EntityState.Added || e.State == EntityState.Modified));
+
+            foreach (var entry in entries)
+            {
+                var entity = (ITimestamped)entry.Entity;
+                if (entry.State == EntityState.Added)
+                    entity.CreatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            return base.SaveChanges();
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.Entity is ITimestamped && (e.State == EntityState.Added || e.State == EntityState.Modified));
+
+            foreach (var entry in entries)
+            {
+                var entity = (ITimestamped)entry.Entity;
+                if (entry.State == EntityState.Added)
+                    entity.CreatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            return base.SaveChangesAsync(cancellationToken);
         }
     }
 }

@@ -8,6 +8,7 @@ export default function OrderTracking() {
   const [email, setEmail] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [myOrders, setMyOrders] = useState([]);
+  const [cancelLoading, setCancelLoading] = useState({});
 
   useEffect(() => {
     // Tự động load order nếu có orderNumber trong URL (từ payment redirect)
@@ -37,13 +38,102 @@ export default function OrderTracking() {
         const token = localStorage.getItem("token");
         if (token) {
           const r = await api.get("/orders"); // protected endpoint
-          setMyOrders(r.data || []);
+          // Filter out cancelled orders so tracked list doesn't show them by default
+          const data = r.data || [];
+          const visible = data.filter((o) => {
+            const st = (o.status || o.Status || "").toString().toLowerCase();
+            // hide english and vietnamese cancelled variants ("cancel", "canceled", "đã hủy", "hủy")
+            if (
+              st.includes("cancel") ||
+              st.includes("hủy") ||
+              st.includes("huy")
+            )
+              return false;
+            return true;
+          });
+          setMyOrders(visible);
         }
       } catch (e) {
         // ignore if not logged in
       }
     })();
   }, []);
+
+  // Refresh user's orders (use after cancel)
+  async function refreshMyOrders() {
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        const r = await api.get("/orders");
+        const data = r.data || [];
+        const visible = data.filter(
+          (o) =>
+            (o.status || o.Status || "").toString().toLowerCase() !==
+            "cancelled"
+        );
+        setMyOrders(visible);
+      }
+    } catch (err) {
+      console.error("refreshMyOrders failed", err);
+    }
+  }
+
+  // Cancel an order as authenticated user by order id
+  async function handleCancelAuthenticated(orderId) {
+    if (!orderId) return;
+    if (!confirm("Bạn có chắc chắn muốn hủy đơn này?")) return;
+    setCancelLoading((s) => ({ ...s, [orderId]: true }));
+    try {
+      const res = await api.post(`/orders/${orderId}/cancel`);
+      alert(res.data?.message || "Đã hủy đơn");
+      // Optimistically remove from myOrders so it disappears immediately
+      setMyOrders((prev) =>
+        prev.filter((o) => Number(o.id) !== Number(orderId))
+      );
+      // Refresh in background to keep state consistent
+      refreshMyOrders().catch((e) =>
+        console.error("Refresh after cancel failed", e)
+      );
+      // If currently viewing this order, reload detail
+      const currentId = order?.id ?? order?.Id;
+      if (currentId && Number(currentId) === Number(orderId)) {
+        try {
+          const r = await api.get(`/orders/${orderId}`);
+          setOrder(r.data);
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (err) {
+      console.error("Cancel failed", err);
+      const msg = err?.response?.data?.message || "Hủy đơn thất bại";
+      alert(msg);
+    } finally {
+      setCancelLoading((s) => ({ ...s, [orderId]: false }));
+    }
+  }
+
+  // Cancel as guest by orderNumber + email
+  async function handleGuestCancel(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!orderNumber || !email) {
+      alert("Vui lòng nhập mã đơn và email để hủy.");
+      return;
+    }
+    if (!confirm("Bạn có chắc chắn muốn hủy đơn (guest)?")) return;
+    setCancelLoading((s) => ({ ...s, guest: true }));
+    try {
+      const res = await api.post("/orders/cancel", { orderNumber, email });
+      alert(res.data?.message || "Đã hủy đơn");
+      setOrder(null);
+    } catch (err) {
+      console.error("Guest cancel failed", err);
+      const msg = err?.response?.data?.message || "Hủy đơn thất bại";
+      alert(msg);
+    } finally {
+      setCancelLoading((s) => ({ ...s, guest: false }));
+    }
+  }
 
   async function handleGuestTrack(e) {
     e?.preventDefault();
@@ -71,9 +161,18 @@ export default function OrderTracking() {
           <h3>Đơn hàng của bạn</h3>
           <ul>
             {myOrders.map((o) => (
-              <li key={o.id}>
+              <li key={o.id} style={{ marginBottom: 8 }}>
                 <strong>{o.orderNumber ?? o.OrderNumber ?? o.OrderNum}</strong>{" "}
                 - {o.status ?? o.Status} - Tổng {o.total ?? o.Total}
+                <div style={{ display: "inline-block", marginLeft: 12 }}>
+                  <button
+                    onClick={() => handleCancelAuthenticated(o.id)}
+                    disabled={!!cancelLoading[o.id]}
+                    style={{ marginLeft: 8 }}
+                  >
+                    {cancelLoading[o.id] ? "Đang hủy..." : "Hủy đơn"}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -101,6 +200,14 @@ export default function OrderTracking() {
           />
         </div>
         <button type="submit">Tra cứu</button>
+        <button
+          type="button"
+          onClick={handleGuestCancel}
+          disabled={!!cancelLoading.guest}
+          style={{ marginLeft: 8 }}
+        >
+          {cancelLoading.guest ? "Đang hủy..." : "Hủy đơn (guest)"}
+        </button>
       </form>
 
       {order && (
@@ -114,6 +221,22 @@ export default function OrderTracking() {
               </li>
             ))}
           </ul>
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={() => {
+                const id = order.id ?? order.Id;
+                if (id) handleCancelAuthenticated(id);
+                else handleGuestCancel();
+              }}
+              disabled={
+                !!cancelLoading[order.id ?? order.Id] || !!cancelLoading.guest
+              }
+            >
+              {cancelLoading[order.id ?? order.Id] || cancelLoading.guest
+                ? "Đang hủy..."
+                : "Hủy đơn"}
+            </button>
+          </div>
         </div>
       )}
     </div>

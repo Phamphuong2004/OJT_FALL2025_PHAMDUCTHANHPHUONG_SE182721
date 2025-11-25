@@ -6,7 +6,7 @@ using Game_store.Models;
 namespace GameStoreMini.Models
 {
     // Simple custom user model for learning.
-    public class User
+    public class User : ITimestamped
     {
         public User()
         {

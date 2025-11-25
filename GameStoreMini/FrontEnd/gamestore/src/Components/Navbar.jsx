@@ -10,6 +10,7 @@ import { logout as apiLogout, refreshToken } from "../API/UserAPI";
 import "../Decorate/Navbar.css";
 import { useCart } from "../Cart/CartProvider";
 import OrderTrackingButton from "../Order/OrderTrackingButton";
+import Clock from "./Clock";
 
 export default function Navbar({ onSearch }) {
   const { count } = useCart(); // get count from context
@@ -164,6 +165,20 @@ export default function Navbar({ onSearch }) {
     }
   }
 
+  function handleSearch() {
+    // If a parent provided an onSearch handler, use it.
+    if (onSearch) {
+      onSearch(query);
+      return;
+    }
+
+    // Fallback: navigate to a simple search route so the button isn't "dead".
+    // This avoids requiring every Navbar consumer to pass `onSearch`.
+    const q = (query || "").trim();
+    if (q.length > 0) navigate(`/search?q=${encodeURIComponent(q)}`);
+    else navigate(`/search`);
+  }
+
   return (
     <nav className="gs-navbar">
       <div className="gs-container">
@@ -264,6 +279,15 @@ export default function Navbar({ onSearch }) {
         </div>
 
         <div className="gs-actions">
+          {getUserRole() !== "Admin" && (
+            <div style={{ marginRight: 8 }}>
+              <Clock
+                showSeconds={true}
+                showTZ={true}
+                className="navbar-clock"
+              />
+            </div>
+          )}
           {/* Search box - CHỈ cho Customer */}
           {getUserRole() !== "Admin" && (
             <div className="gs-search">
@@ -273,12 +297,12 @@ export default function Navbar({ onSearch }) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") onSearch && onSearch(query);
+                  if (e.key === "Enter") handleSearch();
                 }}
               />
               <button
                 className="search-btn"
-                onClick={() => onSearch && onSearch(query)}
+                onClick={() => handleSearch()}
                 aria-label="Search"
               >
                 🔍

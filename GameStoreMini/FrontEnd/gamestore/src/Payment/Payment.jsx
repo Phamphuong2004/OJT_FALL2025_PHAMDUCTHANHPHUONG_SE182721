@@ -6,6 +6,8 @@ import AddressManager from "../Components/AddressManager";
 import OrderAPI from "../API/OrderAPI";
 import PaymentAPI from "../API/PaymentAPI";
 import LocationAPI from "../API/LocationAPI";
+import OrderSummary from "../Components/OrderSummary";
+import formatCurrency from "../Utils/formatCurrency";
 import { getErrorMessage } from "../API/ApiClient";
 import { isAuthenticated, getUserEmail } from "../Auth/useAuth";
 import "../Decorate/Payment.css";
@@ -139,10 +141,7 @@ export default function Payment() {
     fetchWards();
   }, [formData.city, formData.district]);
 
-  // Format currency VND
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN").format(amount) + " ₫";
-  };
+  // Use shared helper for currency formatting
 
   // Tính toán
   const calculateSubtotal = () => {
@@ -691,77 +690,16 @@ export default function Payment() {
           {error && <div className="error-box">❌ {error}</div>}
         </div>
 
-        {/* Right - Order Summary */}
+        {/* Right - Order Summary (extracted) */}
         <div className="payment-right">
-          <h3>Đơn hàng của bạn</h3>
-
-          <ul className="order-summary-list">
-            {cartItems.map((item) => (
-              <li key={item.gameId || item.id}>
-                <div>
-                  <strong>{item.title || item.gameName}</strong>
-                  <br />
-                  <small>Số lượng: {item.qty || item.quantity}</small>
-                </div>
-                <div>
-                  {formatCurrency(item.price * (item.qty || item.quantity))}
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <div className="order-summary-summary">
-            <div className="order-line">
-              <span>Tạm tính ({count} sản phẩm):</span>
-              <span>{formatCurrency(calculateSubtotal())}</span>
-            </div>
-
-            <div className="order-line">
-              <span>
-                Phí vận chuyển:
-                {calculateShipping() === 0 && (
-                  <small style={{ color: "green", display: "block" }}>
-                    ✅ Miễn phí (đơn ≥ 500k)
-                  </small>
-                )}
-              </span>
-              <span>{formatCurrency(calculateShipping())}</span>
-            </div>
-
-            <div className="order-line">
-              <span>VAT (10%):</span>
-              <span>{formatCurrency(calculateTax())}</span>
-            </div>
-
-            <hr
-              style={{
-                margin: "12px 0",
-                border: "none",
-                borderTop: "1px solid #eee",
-              }}
-            />
-
-            <div className="order-line total-amount">
-              <span>Tổng cộng:</span>
-              <span>{formatCurrency(calculateTotal())}</span>
-            </div>
-
-            {calculateSubtotal() < 500000 && (
-              <div
-                style={{
-                  marginTop: "12px",
-                  padding: "10px",
-                  background: "#fff3cd",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  color: "#856404",
-                }}
-              >
-                💡 Mua thêm {formatCurrency(500000 - calculateSubtotal())} để
-                được miễn phí ship!
-              </div>
-            )}
-          </div>
+          <OrderSummary
+            items={cartItems}
+            count={count}
+            subtotal={calculateSubtotal()}
+            shipping={calculateShipping()}
+            tax={calculateTax()}
+            total={calculateTotal()}
+          />
 
           <button
             type="button"

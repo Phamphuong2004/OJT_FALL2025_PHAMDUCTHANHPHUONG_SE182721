@@ -3,6 +3,7 @@ import { Navigate, Outlet, Link, useNavigate } from "react-router-dom";
 import { getUserRole, isAuthenticated } from "../Auth/useAuth";
 import { logout as apiLogout } from "../API/UserAPI";
 import "../Decorate/AdminLayout.css";
+import Clock from "../Components/Clock";
 
 export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -29,6 +30,15 @@ export default function AdminLayout() {
         onLogout={handleLogout}
       />
       <div className={`admin-main ${sidebarCollapsed ? "expanded" : ""}`}>
+        <div className="admin-topbar">
+          <div className="topbar-left">
+            {/* reserved for breadcrumbs or page title */}
+          </div>
+          <div className="topbar-right">
+            <Clock showSeconds={false} showTZ={false} />
+          </div>
+        </div>
+
         <div className="admin-content">
           <Outlet /> {/* Render nested admin routes here */}
         </div>

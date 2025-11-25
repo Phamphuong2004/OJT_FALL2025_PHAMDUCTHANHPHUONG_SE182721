@@ -7,6 +7,7 @@ import { getUserRole } from "../Auth/useAuth";
 import viewHistoryAPI from "../API/ViewHistoryAPI";
 import "../Decorate/GameDetails.css"; // <-- imported stylesheet
 import ReviewList from "../Review/ReviewList";
+import formatCurrency from "../Utils/formatCurrency";
 
 export default function GameDetails() {
   const { id } = useParams();
@@ -112,14 +113,17 @@ export default function GameDetails() {
     );
 
   const title = game.title ?? game.name ?? game.gameName ?? "Untitled";
+  // Giá từ API có thể được trả về với nhiều field khác nhau: `price`, `priceAmount`,
+  // hoặc `priceText`. Trường hợp phổ biến trong project này là lưu giá theo VND
+  // (ví dụ 1399000). Trước đây code dùng currency: "USD" nên giá hiển thị là
+  // "$1,399,000.00" — nhìn sai lệch về đơn vị.
+  //
+  // Sửa ở đây để hiển thị đúng theo locale Việt Nam và đơn vị VND. Nếu backend
+  // thay đổi đơn vị (ví dụ trả về giá bằng USD), cần thay lại `currency` phù
+  // hợp hoặc gửi thêm metadata từ API.
   const priceNum = game.price ?? game.priceAmount ?? null;
   const price =
-    priceNum != null
-      ? new Intl.NumberFormat(undefined, {
-          style: "currency",
-          currency: "USD",
-        }).format(priceNum)
-      : game.priceText ?? "";
+    priceNum != null ? formatCurrency(priceNum) : game.priceText ?? "";
 
   let imgSrc =
     game.imageUrl ||
@@ -164,7 +168,36 @@ export default function GameDetails() {
           <p style={{ fontSize: 20, fontWeight: 600 }}>{price}</p>
           <div style={{ margin: "12px 0" }}>
             <strong>Thể loại:</strong>{" "}
-            {game.categoryName ?? game.category ?? "Chưa xác định"}
+            {/*
+                Backend có thể trả về thể loại dưới dạng nhiều kiểu:
+                - `categoryName` (string)
+                - `category` (string) hoặc `category` (object) như { id, name }
+                Để tránh hiển thị 'Chưa xác định' khi thông tin vẫn có trong object,
+                chúng ta thử `categoryName`, sau đó `category.name`, rồi `category`
+                (fallback). Nếu backend thay đổi cấu trúc, chỉnh logic ở đây.
+              */}
+            {
+              // 1) categoryNames (camelCase or PascalCase)
+              (game.categoryNames &&
+                game.categoryNames.length &&
+                game.categoryNames[0]) ||
+                (game.CategoryNames &&
+                  game.CategoryNames.length &&
+                  game.CategoryNames[0]) ||
+                // 2) Categories array of objects
+                (Array.isArray(game.Categories) &&
+                  game.Categories[0] &&
+                  (game.Categories[0].name || game.Categories[0].Name)) ||
+                (Array.isArray(game.categories) &&
+                  game.categories[0] &&
+                  (game.categories[0].name || game.categories[0].Name)) ||
+                // 3) single-field fallbacks
+                game.categoryName ||
+                game.category?.name ||
+                game.category ||
+                // 4) default
+                "Chưa xác định"
+            }
           </div>
           <div style={{ marginBottom: 16, color: "#444" }}>
             {game.description ||

@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken } from "../Auth/useAuth";
 
 const API_BASE_URL =
-  (process.env.REACT_APP_API_BASE || "https://localhost:7201") +
+  (import.meta.env.VITE_API_BASE || "https://localhost:7201") +
   "/api/admin/promotions";
 
 const authHeaders = () => {

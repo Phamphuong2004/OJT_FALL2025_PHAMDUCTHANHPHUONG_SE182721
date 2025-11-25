@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import AdminUserAPI from "../API/AdminUserAPI";
+import Clock from "../Components/Clock";
 import "../Decorate/AdminUsers.css";
 
 export default function UsersList() {
@@ -33,11 +34,11 @@ export default function UsersList() {
     if (!role) return;
     try {
       await AdminUserAPI.updateRole(u.id, role);
-      alert("Role updated");
+      alert("Cập nhật role thành công");
       load();
     } catch (e) {
       console.error(e);
-      alert("Failed to update role: " + (e?.response?.data || e.message));
+      alert("Lỗi cập nhật role: " + (e?.response?.data || e.message));
     }
   };
 
@@ -45,10 +46,10 @@ export default function UsersList() {
     try {
       if (u.lockoutEnd) {
         await AdminUserAPI.unlock(u.id);
-        alert("User unlocked");
+        alert("Mở khóa user thành công");
       } else {
         await AdminUserAPI.lock(u.id);
-        alert("User locked");
+        alert("Khóa user thành công");
       }
       load();
     } catch (e) {
@@ -57,9 +58,31 @@ export default function UsersList() {
     }
   };
 
+  const formatMeetTime = (isoString, locale) => {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    const loc =
+      locale ||
+      (typeof navigator !== "undefined" ? navigator.language : "en-US");
+    const time = new Intl.DateTimeFormat(loc, {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+    const datePart = new Intl.DateTimeFormat(loc, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(d);
+    return `${time} · ${datePart}`;
+  };
+
   return (
     <div className="admin-users">
-      <h2>Admin — Users</h2>
+      <div className="users-header">
+        <h2>Admin — Users</h2>
+        <Clock />
+      </div>
       <div style={{ marginBottom: 12 }}>
         <button
           className="primary"
@@ -96,6 +119,7 @@ export default function UsersList() {
                 <th>ID</th>
                 <th>User name</th>
                 <th>Full name</th>
+                <th>Created</th>
                 <th>Email</th>
                 <th>Role</th>
                 <th>Email confirmed</th>
@@ -110,6 +134,7 @@ export default function UsersList() {
                     <td>{u.id}</td>
                     <td>{u.userName || u.userName}</td>
                     <td>{u.fullName || ""}</td>
+                    <td>{formatMeetTime(u.createdAt)}</td>
                     <td>{u.email}</td>
                     <td>{u.role}</td>
                     <td>{String(u.emailConfirmed)}</td>

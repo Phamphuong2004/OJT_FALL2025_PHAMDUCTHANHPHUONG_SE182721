@@ -70,3 +70,44 @@ export default {
   getUserEmail,
   isAuthenticated,
 };
+
+// Provide a lightweight `useAuth` hook for components that expect it.
+// It derives a `user` object from localStorage `user` or from the JWT token claims.
+import { useState, useEffect } from "react";
+
+export function useAuth() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) {
+        setUser(JSON.parse(raw));
+        return;
+      }
+
+      const token = getToken();
+      const claims = decodeToken(token);
+      if (claims) {
+        const u = {
+          username: claims.unique_name || claims.name || claims.sub || null,
+          email: getUserEmail(),
+          role: getUserRole(),
+          // other profile fields may be populated by backend later
+        };
+        setUser(u);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const updateUser = (newUser) => {
+    try {
+      localStorage.setItem("user", JSON.stringify(newUser));
+    } catch (e) {}
+    setUser(newUser);
+  };
+
+  return { user, updateUser };
+}

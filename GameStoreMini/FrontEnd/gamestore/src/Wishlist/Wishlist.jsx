@@ -4,6 +4,8 @@ import wishlistAPI from "../API/WishlistAPI";
 import { useCart } from "../Cart/CartProvider";
 import { Trash2, ShoppingCart } from "lucide-react";
 import ReviewSummary from "../Review/ReviewSummary";
+import formatCurrency from "../Utils/formatCurrency";
+import { useToast } from "../Components/Toast";
 import "../Decorate/Pages.css";
 
 export default function Wishlist() {
@@ -12,6 +14,7 @@ export default function Wishlist() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const toast = useToast();
 
   useEffect(() => {
     fetchWishlist();
@@ -40,7 +43,9 @@ export default function Wishlist() {
       setWishlist((prev) => prev.filter((item) => item.gameId !== gameId));
     } catch (err) {
       console.error("Error removing from wishlist:", err);
-      alert("Không thể xóa khỏi wishlist");
+      try {
+        toast.error("Không thể xóa khỏi wishlist");
+      } catch {}
     }
   };
 
@@ -55,15 +60,11 @@ export default function Wishlist() {
       await removeFromWishlist(item.gameId);
     } catch (err) {
       console.error("Error adding to cart:", err);
-      alert("Không thể thêm vào giỏ hàng");
+      try {
+        toast.error("Không thể thêm vào giỏ hàng");
+      } catch {}
     }
   };
-
-  const currencyFormatter = new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  });
 
   const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
   const PLACEHOLDER = "/placeholder-game.png";
@@ -168,7 +169,7 @@ export default function Wishlist() {
                 }}
               >
                 <div style={{ fontWeight: 800 }}>
-                  {currencyFormatter.format(item.gamePrice)}
+                  {formatCurrency(item.gamePrice)}
                 </div>
               </div>
 

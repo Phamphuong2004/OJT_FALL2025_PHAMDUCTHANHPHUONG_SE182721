@@ -14,12 +14,12 @@ public class AdminUsersController : ControllerBase
     [HttpGet]
     public IActionResult List([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var users = _db.Users
+            var users = _db.Users
             .AsNoTracking()
             .OrderBy(u => u.Id)
             .Skip((page-1)*pageSize)
             .Take(pageSize)
-            .Select(u => new { u.Id, u.Email, u.UserName, u.FullName, u.Role, u.EmailConfirmed, u.LockoutEnd })
+            .Select(u => new { u.Id, u.Email, u.UserName, u.FullName, u.Role, u.EmailConfirmed, u.LockoutEnd, createdAt = u.CreatedAt, updatedAt = u.UpdatedAt })
             .ToList();
         return Ok(users);
     }
@@ -30,7 +30,7 @@ public class AdminUsersController : ControllerBase
         var user = _db.Users
             .AsNoTracking()
             .Where(u => u.Id == id)
-            .Select(u => new { u.Id, u.Email, u.UserName, u.FullName, u.Role, u.EmailConfirmed, u.LockoutEnd })
+            .Select(u => new { u.Id, u.Email, u.UserName, u.FullName, u.Role, u.EmailConfirmed, u.LockoutEnd, createdAt = u.CreatedAt, updatedAt = u.UpdatedAt })
             .FirstOrDefault();
         if (user == null) return NotFound();
         return Ok(user);
